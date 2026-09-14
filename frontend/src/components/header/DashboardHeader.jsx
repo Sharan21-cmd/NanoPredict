@@ -1,6 +1,6 @@
 import { useLiveClock } from '../../hooks/useLiveClock'
 
-export default function DashboardHeader() {
+export default function DashboardHeader({ onLogout }) {
   const time = useLiveClock()
 
   return (
@@ -31,7 +31,7 @@ export default function DashboardHeader() {
         </div>
       </div>
 
-      {/* Status + Time */}
+      {/* Status + Time + Logout */}
       <div className="flex items-center gap-5">
 
         <div className="flex items-center gap-2 px-3 py-1.5 border border-emerald-400/25 bg-emerald-400/5 rounded-sm">
@@ -69,6 +69,14 @@ export default function DashboardHeader() {
           className="w-8 h-8 flex items-center justify-center border border-slate-800 rounded-sm text-slate-400 hover:text-slate-200 hover:border-slate-700"
         >
           <span className="text-sm">○</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className="px-3 py-2 border border-red-500/30 rounded-sm text-[10px] font-medium text-red-400 hover:text-red-300 hover:border-red-400/50 hover:bg-red-500/5 transition"
+        >
+          LOGOUT
         </button>
 
       </div>

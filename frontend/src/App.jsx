@@ -19,7 +19,7 @@ import Login from './auth/Login'
 
 export default function App() {
   const [authenticated, setAuthenticated] = useState(
-    Boolean(localStorage.getItem('nanopredict_token'))
+    Boolean(sessionStorage.getItem('nanopredict_token'))
   )
 
   function handleLogin() {
@@ -27,7 +27,7 @@ export default function App() {
   }
 
   function handleLogout() {
-    localStorage.removeItem('nanopredict_token')
+    sessionStorage.removeItem('nanopredict_token')
     setAuthenticated(false)
   }
 
@@ -46,7 +46,7 @@ export default function App() {
 
             <div className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
 
-              <DashboardHeader />
+              <DashboardHeader onLogout={handleLogout} />
 
               <Routes>
                 <Route path="/" element={<Overview />} />

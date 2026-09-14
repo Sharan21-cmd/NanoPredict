@@ -134,7 +134,7 @@ export function TelemetryProvider({ children }) {
     function connect() {
       if (stopped) return
 
-      const token = localStorage.getItem('nanopredict_token')
+      const token = sessionStorage.getItem('nanopredict_token')
 
       if (!token) {
         console.warn('[NanoPredict] No authentication token found')

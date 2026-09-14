@@ -36,7 +36,7 @@ export default function Login({ onLogin }) {
         throw new Error(data.detail || 'Login failed')
       }
 
-      localStorage.setItem('nanopredict_token', data.access_token)
+      sessionStorage.setItem('nanopredict_token', data.access_token)
 
       onLogin()
     } catch (error) {
