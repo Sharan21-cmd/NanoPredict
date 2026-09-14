@@ -1,0 +1,22 @@
+import Panel from '../layout/Panel'
+import SensorCard from './SensorCard'
+import { SIMULATED_SENSORS } from '../../data/sensors'
+
+export default function MonitoringPanel() {
+  return (
+    <Panel
+      title="Sensor Telemetry"
+      subtitle="Live process parameters"
+      className="h-full"
+    >
+      <div className="p-3 space-y-2.5 overflow-y-auto h-full">
+        {SIMULATED_SENSORS.map((sensor) => (
+          <SensorCard
+            key={sensor.id}
+            sensor={sensor}
+          />
+        ))}
+      </div>
+    </Panel>
+  )
+}

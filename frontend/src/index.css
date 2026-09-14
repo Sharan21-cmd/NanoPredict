@@ -1,0 +1,143 @@
+@import "tailwindcss";
+
+/* =========================================================
+   NanoPredict Theme System
+   ========================================================= */
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: #020617;
+  color: #e2e8f0;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+/* =========================================================
+   LIGHT THEME
+   ========================================================= */
+
+html.light {
+  color-scheme: light;
+}
+
+html.light body {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Main dark surfaces → light surfaces */
+html.light .bg-slate-950 {
+  background-color: #f8fafc;
+}
+
+html.light .bg-slate-900 {
+  background-color: #ffffff;
+}
+
+html.light .bg-slate-900\/60 {
+  background-color: rgb(255 255 255 / 0.90);
+}
+
+html.light .bg-slate-950\/60 {
+  background-color: rgb(248 250 252 / 0.90);
+}
+
+/* Text */
+html.light .text-slate-100 {
+  color: #0f172a;
+}
+
+html.light .text-slate-200 {
+  color: #1e293b;
+}
+
+html.light .text-slate-300 {
+  color: #334155;
+}
+
+html.light .text-slate-400 {
+  color: #475569;
+}
+
+html.light .text-slate-500 {
+  color: #64748b;
+}
+
+html.light .text-slate-600 {
+  color: #94a3b8;
+}
+
+/* Borders */
+html.light .border-slate-800 {
+  border-color: #cbd5e1;
+}
+
+html.light .border-slate-700 {
+  border-color: #cbd5e1;
+}
+
+/* Hover surfaces */
+html.light .hover\:bg-slate-900:hover {
+  background-color: #e2e8f0;
+}
+
+html.light .hover\:text-slate-200:hover {
+  color: #0f172a;
+}
+
+html.light .hover\:text-slate-300:hover {
+  color: #1e293b;
+}
+
+/* Semi-transparent dark backgrounds */
+html.light .bg-slate-950\/70 {
+  background-color: rgb(248 250 252 / 0.85);
+}
+
+/* =========================================================
+   LIGHT THEME — FORM / PANEL SUPPORT
+   ========================================================= */
+
+html.light input[type='range'] {
+  accent-color: #0891b2;
+}
+
+/* =========================================================
+   SCROLLBAR
+   ========================================================= */
+
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
