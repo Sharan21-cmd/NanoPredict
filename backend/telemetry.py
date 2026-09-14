@@ -16,6 +16,7 @@ class TelemetryEngine:
         self.temperature_mode = "normal"
         self.vibration_mode = "normal"
         self.vacuum_mode = "normal"
+        self.critical_mode = False
 
     # ---------------------------------------------------------
     # MOTOR CONTROL
@@ -51,7 +52,11 @@ class TelemetryEngine:
         if mode in ("normal", "leak"):
             self.vacuum_mode = mode
 
+    def set_critical_mode(self, enabled=True):
+        self.critical_mode = bool(enabled)
+
     def normalize_sensors(self):
+        self.critical_mode = False
         self.temperature_mode = "normal"
         self.vibration_mode = "normal"
         self.vacuum_mode = "normal"
@@ -92,7 +97,9 @@ class TelemetryEngine:
         # Temperature
         # -----------------------------------------------------
 
-        if self.temperature_mode == "heat":
+        if self.critical_mode:
+            temperature = 38.0 + random.uniform(-1.0, 2.0)
+        elif self.temperature_mode == "heat":
             temperature = 35.0 + random.uniform(-0.5, 0.5)
         else:
             temperature = 24.5 + random.uniform(-0.3, 0.3)
@@ -101,7 +108,10 @@ class TelemetryEngine:
         # Vibration
         # -----------------------------------------------------
 
-        if self.vibration_mode == "shake":
+        if self.critical_mode:
+            vibration = 0.95 + random.uniform(-0.08, 0.12)
+            vibration_status = "HIGH"
+        elif self.vibration_mode == "shake":
             vibration = 0.80 + random.uniform(-0.08, 0.08)
             vibration_status = "HIGH"
         else:
@@ -118,7 +128,10 @@ class TelemetryEngine:
         # Vacuum
         # -----------------------------------------------------
 
-        if self.vacuum_mode == "leak":
+        if self.critical_mode:
+            vacuum = 0.00065 + random.uniform(-0.00004, 0.00008)
+            vacuum_status = "LEAK"
+        elif self.vacuum_mode == "leak":
             vacuum = 0.0005 + random.uniform(-0.00003, 0.00003)
             vacuum_status = "LEAK"
         else:
@@ -129,7 +142,10 @@ class TelemetryEngine:
         # Sub-nanometer laser drift
         # -----------------------------------------------------
 
-        drift_nm = random.uniform(-0.35, 0.35)
+        if self.critical_mode:
+            drift_nm = random.uniform(4.0, 6.0) * random.choice([-1, 1])
+        else:
+            drift_nm = random.uniform(-0.35, 0.35)
 
         # Convert nm → mm
         laser_displacement = (

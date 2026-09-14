@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 
 import { TelemetryProvider } from './telemetry/TelemetryContext'
@@ -14,11 +15,31 @@ import Alerts from './pages/Alerts'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
 
+import Login from './auth/Login'
+
 export default function App() {
+  const [authenticated, setAuthenticated] = useState(
+    Boolean(localStorage.getItem('nanopredict_token'))
+  )
+
+  function handleLogin() {
+    setAuthenticated(true)
+  }
+
+  function handleLogout() {
+    localStorage.removeItem('nanopredict_token')
+    setAuthenticated(false)
+  }
+
+  if (!authenticated) {
+    return <Login onLogin={handleLogin} />
+  }
+
   return (
     <SettingsProvider>
       <TelemetryProvider>
         <BrowserRouter>
+
           <div className="h-screen w-screen overflow-hidden bg-slate-950 text-slate-200 flex">
 
             <Sidebar />
@@ -38,7 +59,9 @@ export default function App() {
               </Routes>
 
             </div>
+
           </div>
+
         </BrowserRouter>
       </TelemetryProvider>
     </SettingsProvider>

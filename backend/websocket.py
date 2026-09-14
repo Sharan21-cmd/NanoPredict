@@ -5,6 +5,7 @@ from fastapi import WebSocket
 
 from telemetry import telemetry_engine
 from risk import calculate_risk, generate_alerts
+from prediction import prediction_engine
 
 
 class ConnectionManager:
@@ -53,7 +54,7 @@ async def handle_command(message: str):
     try:
         command = json.loads(message)
 
-        command_type = command.get("command")
+        command_type = command.get("command") or command.get("type")
 
         # -----------------------------------------------------
         # MOTOR COMMANDS
@@ -141,7 +142,7 @@ async def handle_command(message: str):
         # NORMALIZE EVERYTHING
         # -----------------------------------------------------
 
-        elif command_type == "normalize":
+        elif command_type in ("normalize", "normalize_sensors"):
 
             telemetry_engine.stop_motor()
             telemetry_engine.normalize_sensors()
@@ -176,13 +177,15 @@ async def telemetry_loop():
             telemetry = telemetry_engine.generate()
             risk = calculate_risk(telemetry)
             alerts = generate_alerts(telemetry, risk)
+            prediction = prediction_engine.predict(telemetry, risk)
 
             payload = {
                 "type": "telemetry",
                 "timestamp": telemetry["timestamp"],
                 "telemetry": telemetry,
                 "risk": risk,
-                "alerts": alerts
+                "alerts": alerts,
+                "prediction": prediction
             }
 
             await manager.broadcast(payload)
