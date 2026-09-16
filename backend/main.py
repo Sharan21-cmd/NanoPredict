@@ -22,7 +22,8 @@ app.add_middleware(
     "http://127.0.0.1:5173",
     "http://localhost:5178",
     "http://127.0.0.1:5178",
-    "https://nano-predict.vercel.app"
+    "https://nano-predict.vercel.app",
+    "https://nano-predict-l0ycpqpzn-vortex-5d1a.vercel.app"
 ],
     allow_credentials=True,
     allow_methods=["*"],
