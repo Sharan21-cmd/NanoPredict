@@ -3,9 +3,13 @@ import { Grid, Environment } from '@react-three/drei'
 import { useTelemetry } from '../../telemetry/useTelemetry'
 import { useSettings } from '../../settings/SettingsContext'
 
+import MachineFrame from './MachineFrame'
 import VacuumChamber from './VacuumChamber'
 import LinearRail from './LinearRail'
 import MotorCarriage from './MotorCarriage'
+import OpticalModule from './OpticalModule'
+import VibrationIsolation from './VibrationIsolation'
+
 import DistanceSensor from './DistanceSensor'
 import VibrationSensor from './VibrationSensor'
 import PressureSensor from './PressureSensor'
@@ -31,7 +35,10 @@ function getVacuumStatus(riskStatus) {
   return 'normal'
 }
 
-export default function Scene() {
+export default function Scene({
+  selectedSubsystem,
+  onSelectSubsystem,
+}) {
   const { telemetry } = useTelemetry()
   const { settings } = useSettings()
 
@@ -43,60 +50,126 @@ export default function Scene() {
     telemetry.vibration.rmsG
   )
 
-  const vacuumStatus = getVacuumStatus(telemetry.risk?.status)
+  const vacuumStatus = getVacuumStatus(
+    telemetry.risk?.status
+  )
+
+  const stagePosition = telemetry.stage.positionMm ?? 0
+
+  const temperatureValue =
+    Number.isFinite(telemetry.temperature.valueC)
+      ? `${telemetry.temperature.valueC.toFixed(1)} °C`
+      : '--'
+
+  const vibrationValue =
+    Number.isFinite(telemetry.vibration.rmsG)
+      ? `${telemetry.vibration.rmsG.toFixed(3)} g`
+      : '--'
+
+  const vacuumValue =
+    Number.isFinite(telemetry.vacuum.pressurePa)
+      ? `${telemetry.vacuum.pressurePa.toFixed(1)} Pa`
+      : '--'
+
+  const positionValue =
+    Number.isFinite(stagePosition)
+      ? `${stagePosition.toFixed(2)} mm`
+      : '--'
 
   return (
     <>
-      {/* Background */}
-      <color attach="background" args={['#10141b']} />
+      {/* =====================================================
+          INDUSTRIAL ENVIRONMENT
+         ===================================================== */}
 
-      {/* Lighting */}
-      <ambientLight intensity={0.62} />
+      <color
+        attach="background"
+        args={['#070b10']}
+      />
+
+      <ambientLight intensity={0.58} />
 
       <hemisphereLight
-        intensity={0.45}
-        groundColor="#080b10"
-        color="#e0f2fe"
+        intensity={0.42}
+        groundColor="#05070a"
+        color="#dff6ff"
       />
 
       <directionalLight
-        position={[4, 7, 5]}
-        intensity={1.45}
+        position={[5, 8, 6]}
+        intensity={1.55}
         color="#f8fafc"
         castShadow
       />
 
       <directionalLight
-        position={[-4, 4, -3]}
-        intensity={0.55}
+        position={[-5, 5, -4]}
+        intensity={0.65}
         color="#67e8f9"
       />
 
-      {/* Technical floor grid */}
+      <pointLight
+        position={[0, 2.8, 0]}
+        intensity={0.35}
+        color="#22d3ee"
+      />
+
+      {/* =====================================================
+          TECHNICAL FLOOR
+         ===================================================== */}
+
       {settings.showGrid && (
         <Grid
           position={[0, -0.205, 0]}
           args={[20, 20]}
           cellSize={0.5}
           cellThickness={0.45}
-          cellColor="#263342"
+          cellColor="#1d2a36"
           sectionSize={2.5}
           sectionThickness={0.9}
-          sectionColor="#425468"
+          sectionColor="#33485a"
           fadeDistance={18}
           fadeStrength={1}
           infiniteGrid
         />
       )}
 
-      {/* Physical prototype */}
-      <VacuumChamber />
+      {/* =====================================================
+          MAIN MACHINE STRUCTURE
+         ===================================================== */}
 
-      <LinearRail />
+      <MachineFrame
+        selected={selectedSubsystem === 'frame'}
+        onSelect={onSelectSubsystem}
+      />
 
-      {/* Moving carriage */}
+      {/* =====================================================
+          VACUUM CHAMBER
+         ===================================================== */}
+
+      <VacuumChamber
+        status={vacuumStatus}
+        selected={selectedSubsystem === 'vacuum'}
+        onSelect={onSelectSubsystem}
+      />
+
+      {/* =====================================================
+          PRECISION POSITIONING SYSTEM
+         ===================================================== */}
+
+      <LinearRail
+        selected={selectedSubsystem === 'positioning'}
+        onSelect={onSelectSubsystem}
+      />
+
+      {/* =====================================================
+          MOVING WAFER STAGE
+         ===================================================== */}
+
       <MotorCarriage
-        positionMm={telemetry.stage.positionMm}
+        positionMm={stagePosition}
+        selected={selectedSubsystem === 'stage'}
+        onSelect={onSelectSubsystem}
       >
         <DistanceSensor />
 
@@ -106,44 +179,79 @@ export default function Scene() {
           <SensorIndicator
             status={vibrationStatus}
             label="MPU6050"
-            value={telemetry.vibration.rmsG}
+            value={vibrationValue}
             position={[0.12, 0.48, -0.13]}
             size={0.055}
           />
         )}
       </MotorCarriage>
 
-      {/* BMP280 */}
+      {/* =====================================================
+          OPTICAL / LITHOGRAPHY MODULE
+         ===================================================== */}
+
+      <OpticalModule
+        selected={selectedSubsystem === 'optical'}
+        onSelect={onSelectSubsystem}
+      />
+
+      {/* =====================================================
+          VIBRATION ISOLATION
+         ===================================================== */}
+
+      <VibrationIsolation
+        status={vibrationStatus}
+        selected={selectedSubsystem === 'vibration'}
+        onSelect={onSelectSubsystem}
+      />
+
+      {/* =====================================================
+          VACUUM / PRESSURE SENSOR
+         ===================================================== */}
+
       <PressureSensor />
 
       {settings.showSensorIndicators && (
         <SensorIndicator
           status={vacuumStatus}
           label="BMP280"
-          value={telemetry.vacuum.pressurePa}
+          value={vacuumValue}
           position={[0.78, 1.25, -0.56]}
           size={0.055}
         />
       )}
 
-      {/* Vacuum */}
       <VacuumTube />
 
-      {/* Electronics */}
-      <Electronics />
+      {/* =====================================================
+          ELECTRONICS / DAQ
+         ===================================================== */}
 
-      {/* Temperature */}
+      <Electronics
+        selected={selectedSubsystem === 'electronics'}
+        onSelect={onSelectSubsystem}
+      />
+
+      {/* =====================================================
+          TEMPERATURE SENSOR
+         ===================================================== */}
+
       {settings.showSensorIndicators && (
         <SensorIndicator
           status={temperatureStatus}
           label="TEMP-01"
-          value={telemetry.temperature.valueC}
+          value={temperatureValue}
           position={[0.55, 1.35, -0.92]}
           size={0.055}
         />
       )}
 
+      {/* Existing overlay anchor preserved */}
       <group name="sensor-overlay-anchor" />
+
+      {/* =====================================================
+          HDR ENVIRONMENT
+         ===================================================== */}
 
       <Environment
         preset="warehouse"

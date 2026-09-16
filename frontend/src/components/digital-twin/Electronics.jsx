@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
+import SubsystemLabel from './SubsystemLabel'
 
 function Cable({
   start,
@@ -41,57 +42,122 @@ function Cable({
 
 export default function Electronics({
   position = [1.65, 0.03, -0.68],
+  selected = false,
+  onSelect,
 }) {
+  const handleSelect = (event) => {
+    event.stopPropagation()
+    onSelect?.('electronics')
+  }
+
   return (
-    <group position={position}>
-      {/* DAQ / microcontroller board */}
-      <mesh receiveShadow>
-        <boxGeometry args={[0.70, 0.045, 0.48]} />
+    <group
+      position={position}
+      onClick={handleSelect}
+    >
+      {/* DAQ / controller enclosure */}
+      <mesh position={[0, 0.12, 0]} castShadow>
+        <boxGeometry args={[0.82, 0.24, 0.58]} />
+        <meshStandardMaterial
+          color={selected ? '#18343d' : '#151a20'}
+          metalness={0.72}
+          roughness={0.3}
+        />
+      </mesh>
+
+      {/* Upper electronics plate */}
+      <mesh position={[0, 0.255, 0]} castShadow>
+        <boxGeometry args={[0.72, 0.035, 0.48]} />
+        <meshStandardMaterial
+          color="#26313a"
+          metalness={0.82}
+          roughness={0.24}
+        />
+      </mesh>
+
+      {/* PCB */}
+      <mesh position={[0, 0.28, 0]}>
+        <boxGeometry args={[0.62, 0.025, 0.38]} />
         <meshStandardMaterial
           color="#0b3b2e"
-          roughness={0.58}
-          metalness={0.1}
+          roughness={0.52}
+          metalness={0.12}
         />
       </mesh>
 
-      {/* Component blocks */}
-      <mesh position={[-0.16, 0.045, 0.08]}>
-        <boxGeometry args={[0.18, 0.05, 0.13]} />
+      {/* Main IC */}
+      <mesh position={[-0.08, 0.31, 0.02]}>
+        <boxGeometry args={[0.17, 0.045, 0.13]} />
         <meshStandardMaterial
-          color="#1f2937"
-          roughness={0.45}
-        />
-      </mesh>
-
-      <mesh position={[0.05, 0.045, -0.05]}>
-        <boxGeometry args={[0.12, 0.05, 0.10]} />
-        <meshStandardMaterial
-          color="#334155"
-          roughness={0.42}
-        />
-      </mesh>
-
-      {/* OLED module */}
-      <mesh position={[0.18, 0.14, -0.19]} rotation={[-0.48, 0, 0]}>
-        <boxGeometry args={[0.25, 0.14, 0.018]} />
-        <meshStandardMaterial
-          color="#020617"
-          roughness={0.28}
+          color="#10151a"
+          roughness={0.4}
           metalness={0.25}
         />
       </mesh>
 
+      {/* Supporting components */}
+      <mesh position={[0.16, 0.31, 0.08]}>
+        <boxGeometry args={[0.10, 0.04, 0.07]} />
+        <meshStandardMaterial
+          color="#64707b"
+          roughness={0.35}
+          metalness={0.55}
+        />
+      </mesh>
+
+      <mesh position={[0.20, 0.31, -0.08]}>
+        <boxGeometry args={[0.08, 0.04, 0.06]} />
+        <meshStandardMaterial
+          color="#47515b"
+          roughness={0.38}
+          metalness={0.5}
+        />
+      </mesh>
+
+      {/* Connector bank */}
+      {[-0.23, -0.08, 0.07, 0.22].map((x) => (
+        <mesh key={x} position={[x, 0.325, -0.17]}>
+          <boxGeometry args={[0.055, 0.045, 0.035]} />
+          <meshStandardMaterial
+            color="#a1a9b2"
+            metalness={0.92}
+            roughness={0.18}
+          />
+        </mesh>
+      ))}
+
+      {/* Status/display panel */}
       <mesh
-        position={[0.18, 0.145, -0.181]}
-        rotation={[-0.48, 0, 0]}
+        position={[0.20, 0.39, -0.21]}
+        rotation={[-0.42, 0, 0]}
       >
-        <planeGeometry args={[0.20, 0.09]} />
+        <boxGeometry args={[0.30, 0.16, 0.018]} />
+        <meshStandardMaterial
+          color="#020617"
+          roughness={0.25}
+          metalness={0.3}
+        />
+      </mesh>
+
+      <mesh
+        position={[0.20, 0.395, -0.202]}
+        rotation={[-0.42, 0, 0]}
+      >
+        <planeGeometry args={[0.24, 0.10]} />
         <meshBasicMaterial
           color="#22d3ee"
           transparent
-          opacity={0.85}
+          opacity={0.82}
         />
       </mesh>
+
+      {/* Indicator LEDs */}
+      {[0, 0.055, 0.11].map((x) => (
+        <mesh key={x} position={[-0.27 + x, 0.34, 0.16]}>
+          <sphereGeometry args={[0.012, 12, 12]} />
+          <meshBasicMaterial color="#67e8f9" />
+        </mesh>
+      ))}
 
       {/* Representative wiring */}
       <Cable
@@ -111,6 +177,13 @@ export default function Electronics({
         end={[0.65, 1.05, -0.56]}
         sag={0.04}
         color="#1e293b"
+      />
+
+      {/* Technical label */}
+      <SubsystemLabel
+        text="DAQ / CONTROL"
+        position={[0, 0.72, 0]}
+        selected={selected}
       />
     </group>
   )
