@@ -11,12 +11,41 @@ function statusColor(status) {
   return NORMAL
 }
 
+function MetalPanel({
+  position,
+  scale,
+  color = '#465463',
+  edge = '#8291a0',
+}) {
+  return (
+    <mesh
+      position={position}
+      scale={scale}
+      castShadow
+      receiveShadow
+    >
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial
+        color={color}
+        metalness={0.9}
+        roughness={0.23}
+      />
+      <Edges
+        color={edge}
+        threshold={20}
+        scale={1.002}
+      />
+    </mesh>
+  )
+}
+
 export default function VacuumChamber({
   status = 'normal',
   selected = false,
   onSelect,
 }) {
-  const accent = selected ? '#22d3ee' : statusColor(status)
+  const statusAccent = statusColor(status)
+  const accent = selected ? '#22d3ee' : statusAccent
 
   return (
     <group
@@ -26,244 +55,324 @@ export default function VacuumChamber({
         onSelect?.('vacuum')
       }}
     >
-      {/* =========================
-          CHAMBER LOWER MOUNT
-         ========================= */}
+      {/* =====================================================
+          MAIN CHAMBER BODY
+         ===================================================== */}
+
+      <MetalPanel
+        position={[0, 1.43, 0]}
+        scale={[2.15, 1.55, 1.70]}
+        color="#26313c"
+      />
+
+      {/* Dark internal process cavity */}
 
       <mesh
-        position={[0, 0.62, 0]}
+        position={[0, 1.43, -0.03]}
+        receiveShadow
+      >
+        <boxGeometry args={[1.72, 1.20, 1.35]} />
+        <meshStandardMaterial
+          color="#081018"
+          metalness={0.28}
+          roughness={0.55}
+        />
+      </mesh>
+
+      {/* =====================================================
+          FRONT VIEWPORT FRAME
+         ===================================================== */}
+
+      {/* Outer viewport surround */}
+
+      <mesh
+        position={[0, 1.43, 0.885]}
         castShadow
       >
-        <boxGeometry args={[1.85, 0.16, 1.65]} />
+        <boxGeometry args={[1.72, 1.30, 0.14]} />
         <meshStandardMaterial
-          color="#384552"
-          metalness={0.88}
+          color="#111a23"
+          metalness={0.82}
           roughness={0.25}
         />
-        <Edges
-          color="#7d8d9d"
-          threshold={20}
-        />
       </mesh>
 
-      {/* =========================
-          MAIN VACUUM BODY
-         ========================= */}
+      {/* Upper viewport frame */}
+
+      <MetalPanel
+        position={[0, 2.055, 0.965]}
+        scale={[1.78, 0.13, 0.16]}
+        color="#596979"
+      />
+
+      {/* Lower viewport frame */}
+
+      <MetalPanel
+        position={[0, 0.805, 0.965]}
+        scale={[1.78, 0.13, 0.16]}
+        color="#596979"
+      />
+
+      {/* Left viewport frame */}
+
+      <MetalPanel
+        position={[-0.82, 1.43, 0.965]}
+        scale={[0.13, 1.16, 0.16]}
+        color="#596979"
+      />
+
+      {/* Right viewport frame */}
+
+      <MetalPanel
+        position={[0.82, 1.43, 0.965]}
+        scale={[0.13, 1.16, 0.16]}
+        color="#596979"
+      />
+
+      {/* =====================================================
+          LARGE FRONT PROCESS WINDOW
+         ===================================================== */}
 
       <mesh
-        position={[0, 1.24, 0]}
+        position={[0, 1.43, 0.91]}
         castShadow
       >
-        <cylinderGeometry args={[0.76, 0.82, 1.12, 48]} />
-        <meshStandardMaterial
-          color="#313d49"
-          metalness={0.91}
-          roughness={0.22}
-        />
-        <Edges
-          color="#8999a9"
-          threshold={25}
-        />
-      </mesh>
+        <boxGeometry args={[1.52, 1.08, 0.055]} />
 
-      {/* Chamber lower flange */}
-
-      <mesh
-        position={[0, 0.70, 0]}
-        castShadow
-      >
-        <cylinderGeometry args={[0.90, 0.90, 0.12, 48]} />
-        <meshStandardMaterial
-          color="#657483"
-          metalness={0.94}
-          roughness={0.20}
-        />
-      </mesh>
-
-      {/* Chamber upper flange */}
-
-      <mesh
-        position={[0, 1.82, 0]}
-        castShadow
-      >
-        <cylinderGeometry args={[0.88, 0.88, 0.12, 48]} />
-        <meshStandardMaterial
-          color="#657483"
-          metalness={0.94}
-          roughness={0.20}
-        />
-      </mesh>
-
-      {/* =========================
-          TRANSPARENT PROCESS WINDOW
-         ========================= */}
-
-      <mesh
-        position={[0, 1.28, 0.735]}
-      >
-        <boxGeometry args={[1.25, 1.05, 0.045]} />
         <meshPhysicalMaterial
-          color="#9edcf0"
+          color="#75b8cc"
           transparent
-          opacity={0.18}
+          opacity={0.16}
           transmission={0.72}
-          roughness={0.10}
-          thickness={0.08}
+          roughness={0.12}
+          thickness={0.06}
           ior={1.45}
         />
+
         <Edges
-          color={selected ? '#22d3ee' : '#4b8ba2'}
-          threshold={10}
+          color={selected ? '#22d3ee' : '#477080'}
+          threshold={12}
         />
       </mesh>
 
-      {/* Viewport surround */}
+      {/* Inner glass reflection strip */}
 
-      <mesh
-        position={[0, 1.28, 0.77]}
-      >
-        <boxGeometry args={[1.43, 1.22, 0.06]} />
-        <meshStandardMaterial
-          color="#17212b"
-          metalness={0.78}
-          roughness={0.25}
-        />
-      </mesh>
-
-      {/* Re-add glass in front */}
-
-      <mesh
-        position={[0, 1.28, 0.81]}
-      >
-        <boxGeometry args={[1.25, 1.05, 0.035]} />
-        <meshPhysicalMaterial
-          color="#b7e8f7"
+      <mesh position={[-0.47, 1.68, 0.945]}>
+        <boxGeometry args={[0.035, 0.72, 0.012]} />
+        <meshBasicMaterial
+          color="#b9edf7"
           transparent
-          opacity={0.12}
-          transmission={0.8}
-          roughness={0.06}
-          thickness={0.05}
+          opacity={0.18}
         />
       </mesh>
 
-      {/* =========================
-          CHAMBER LID
-         ========================= */}
+      {/* =====================================================
+          LOWER CHAMBER PLATFORM
+         ===================================================== */}
+
+      <MetalPanel
+        position={[0, 0.64, 0]}
+        scale={[2.30, 0.18, 1.86]}
+        color="#354250"
+      />
 
       <mesh
-        position={[0, 1.94, 0]}
+        position={[0, 0.75, 0]}
         castShadow
       >
-        <cylinderGeometry args={[0.72, 0.72, 0.18, 48]} />
+        <boxGeometry args={[1.72, 0.08, 1.40]} />
         <meshStandardMaterial
-          color="#202b36"
-          metalness={0.93}
-          roughness={0.19}
+          color="#171f28"
+          metalness={0.82}
+          roughness={0.24}
         />
       </mesh>
 
-      {/* Lid actuator collar */}
+      {/* =====================================================
+          UPPER CHAMBER LID
+         ===================================================== */}
+
+      <MetalPanel
+        position={[0, 2.23, 0]}
+        scale={[2.28, 0.20, 1.82]}
+        color="#394755"
+      />
+
+      <MetalPanel
+        position={[0, 2.35, 0]}
+        scale={[1.86, 0.10, 1.48]}
+        color="#202a34"
+        edge="#687786"
+      />
+
+      {/* =====================================================
+          OPTICAL ENTRY PORT
+         ===================================================== */}
 
       <mesh
-        position={[0, 2.09, 0]}
+        position={[0, 2.43, 0]}
+        castShadow
       >
-        <cylinderGeometry args={[0.29, 0.34, 0.24, 32]} />
+        <cylinderGeometry args={[0.27, 0.31, 0.18, 40]} />
         <meshStandardMaterial
-          color="#566574"
+          color="#667584"
+          metalness={0.94}
+          roughness={0.18}
+        />
+      </mesh>
+
+      <mesh
+        position={[0, 2.55, 0]}
+      >
+        <cylinderGeometry args={[0.20, 0.20, 0.08, 40]} />
+        <meshStandardMaterial
+          color="#171f27"
+          metalness={0.90}
+          roughness={0.18}
+        />
+      </mesh>
+
+      {/* =====================================================
+          INTERNAL PROCESS PLATFORM
+         ===================================================== */}
+
+      <mesh
+        position={[0, 0.91, 0]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.55, 0.55, 0.12, 48]} />
+        <meshStandardMaterial
+          color="#202932"
           metalness={0.91}
-          roughness={0.22}
+          roughness={0.21}
         />
       </mesh>
 
-      {/* =========================
-          INTERNAL STAGE SUPPORT
-         ========================= */}
-
       <mesh
-        position={[0, 0.92, 0]}
+        position={[0, 0.98, 0]}
       >
-        <cylinderGeometry args={[0.48, 0.48, 0.10, 48]} />
+        <cylinderGeometry args={[0.43, 0.43, 0.045, 48]} />
         <meshStandardMaterial
-          color="#161e27"
+          color="#0e151c"
           metalness={0.88}
-          roughness={0.20}
+          roughness={0.18}
         />
       </mesh>
 
-      {/* Subtle internal chamber glow */}
+      {/* =====================================================
+          SIDE VACUUM PORT — RIGHT
+         ===================================================== */}
 
-      <mesh
-        position={[0, 1.32, 0]}
-      >
-        <cylinderGeometry args={[0.57, 0.57, 0.72, 48]} />
-        <meshBasicMaterial
-          color="#164e63"
-          transparent
-          opacity={0.035}
-          side={2}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* =========================
-          SIDE VACUUM PORTS
-         ========================= */}
-
-      <group position={[0.80, 1.30, 0]}>
+      <group position={[1.12, 1.45, 0]}>
         <mesh rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.16, 0.16, 0.28, 32]} />
+          <cylinderGeometry args={[0.16, 0.16, 0.30, 32]} />
           <meshStandardMaterial
-            color="#536271"
-            metalness={0.92}
-            roughness={0.22}
+            color="#687887"
+            metalness={0.94}
+            roughness={0.20}
           />
         </mesh>
 
-        <mesh position={[0.15, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.09, 0.09, 0.08, 24]} />
+        <mesh
+          position={[0.17, 0, 0]}
+          rotation={[0, 0, Math.PI / 2]}
+        >
+          <cylinderGeometry args={[0.095, 0.095, 0.07, 24]} />
           <meshStandardMaterial
             color={accent}
             emissive={accent}
-            emissiveIntensity={selected ? 0.5 : 0.08}
+            emissiveIntensity={selected ? 0.65 : 0.10}
             metalness={0.55}
-            roughness={0.25}
+            roughness={0.24}
+            toneMapped={false}
           />
         </mesh>
       </group>
 
-      <group position={[-0.80, 1.30, 0]}>
+      {/* =====================================================
+          SIDE VACUUM PORT — LEFT
+         ===================================================== */}
+
+      <group position={[-1.12, 1.45, 0]}>
         <mesh rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.13, 0.13, 0.22, 28]} />
+          <cylinderGeometry args={[0.13, 0.13, 0.24, 28]} />
           <meshStandardMaterial
-            color="#536271"
-            metalness={0.92}
+            color="#586877"
+            metalness={0.94}
+            roughness={0.20}
+          />
+        </mesh>
+
+        <mesh
+          position={[-0.14, 0, 0]}
+          rotation={[0, 0, Math.PI / 2]}
+        >
+          <cylinderGeometry args={[0.075, 0.075, 0.06, 24]} />
+          <meshStandardMaterial
+            color="#303c48"
+            metalness={0.9}
             roughness={0.22}
           />
         </mesh>
       </group>
 
-      {/* =========================
-          STATUS INDICATOR
-         ========================= */}
+      {/* =====================================================
+          REAR SERVICE CONNECTIONS
+         ===================================================== */}
 
-      <mesh position={[0.57, 1.92, 0.30]}>
-        <sphereGeometry args={[0.045, 16, 16]} />
+      {[-0.52, 0, 0.52].map((x) => (
+        <group key={x} position={[x, 1.30, -0.88]}>
+          <mesh
+            rotation={[Math.PI / 2, 0, 0]}
+          >
+            <cylinderGeometry args={[0.075, 0.075, 0.18, 24]} />
+            <meshStandardMaterial
+              color="#566674"
+              metalness={0.93}
+              roughness={0.20}
+            />
+          </mesh>
+        </group>
+      ))}
+
+      {/* =====================================================
+          STATUS INDICATOR
+         ===================================================== */}
+
+      <mesh position={[0.70, 2.12, 0.91]}>
+        <sphereGeometry args={[0.045, 18, 18]} />
+
         <meshStandardMaterial
           color={accent}
           emissive={accent}
-          emissiveIntensity={0.75}
+          emissiveIntensity={selected ? 1.0 : 0.72}
           toneMapped={false}
         />
       </mesh>
 
-      {/* Label plate */}
+      {/* Small status light bar */}
 
-      <mesh position={[0, 2.18, 0.10]}>
-        <boxGeometry args={[0.88, 0.045, 0.03]} />
+      <mesh position={[0.40, 2.12, 0.91]}>
+        <boxGeometry args={[0.20, 0.025, 0.018]} />
+
         <meshBasicMaterial
-          color={selected ? '#22d3ee' : '#385466'}
+          color={accent}
           transparent
-          opacity={selected ? 0.9 : 0.45}
+          opacity={selected ? 0.9 : 0.48}
+        />
+      </mesh>
+
+      {/* =====================================================
+          SUBTLE TECHNICAL EDGE
+         ===================================================== */}
+
+      <mesh position={[0, 2.12, 0.975]}>
+        <boxGeometry args={[1.40, 0.018, 0.012]} />
+
+        <meshBasicMaterial
+          color={selected ? '#22d3ee' : '#315364'}
+          transparent
+          opacity={selected ? 0.8 : 0.28}
         />
       </mesh>
     </group>
