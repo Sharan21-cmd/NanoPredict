@@ -1,178 +1,271 @@
-import React from "react";
-import { Edges } from "@react-three/drei";
-import SubsystemLabel from "./SubsystemLabel";
-import { getStatusColor } from "./materials";
+import React from 'react'
+import { Edges } from '@react-three/drei'
+
+const NORMAL = '#22c55e'
+const WARNING = '#f59e0b'
+const CRITICAL = '#ef4444'
+
+function statusColor(status) {
+  if (status === 'critical') return CRITICAL
+  if (status === 'warning') return WARNING
+  return NORMAL
+}
 
 export default function VacuumChamber({
-  status = "normal",
+  status = 'normal',
   selected = false,
   onSelect,
 }) {
-  const statusColor = getStatusColor(status);
+  const accent = selected ? '#22d3ee' : statusColor(status)
 
   return (
     <group
+      name="vacuum-chamber"
       onClick={(event) => {
-        event.stopPropagation();
-        onSelect?.("vacuum");
+        event.stopPropagation()
+        onSelect?.('vacuum')
       }}
     >
-      {/* Heavy lower machine base */}
-      <mesh position={[0, -0.12, 0]} receiveShadow castShadow>
-        <boxGeometry args={[5.8, 0.28, 3.15]} />
-        <meshStandardMaterial
-          color="#070a0e"
-          metalness={0.82}
-          roughness={0.28}
-        />
-      </mesh>
+      {/* =========================
+          CHAMBER LOWER MOUNT
+         ========================= */}
 
-      {/* Base trim */}
-      <mesh position={[0, 0.055, 0]}>
-        <boxGeometry args={[5.55, 0.08, 2.92]} />
+      <mesh
+        position={[0, 0.62, 0]}
+        castShadow
+      >
+        <boxGeometry args={[1.85, 0.16, 1.65]} />
         <meshStandardMaterial
-          color="#1a222a"
+          color="#384552"
           metalness={0.88}
-          roughness={0.22}
-        />
-      </mesh>
-
-      {/* Main vacuum chamber */}
-      <mesh position={[-0.65, 1.02, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[1.42, 1.42, 1.95, 64]} />
-        <meshStandardMaterial
-          color="#252e37"
-          metalness={0.94}
-          roughness={0.2}
-          emissive={selected ? "#003842" : "#000000"}
-          emissiveIntensity={selected ? 0.8 : 0}
+          roughness={0.25}
         />
         <Edges
-          color={selected ? "#00e5ff" : "#607482"}
-          threshold={15}
+          color="#7d8d9d"
+          threshold={20}
         />
       </mesh>
 
-      {/* Chamber upper flange */}
-      <mesh position={[-0.65, 2.02, 0]} castShadow>
-        <cylinderGeometry args={[1.58, 1.58, 0.16, 64]} />
+      {/* =========================
+          MAIN VACUUM BODY
+         ========================= */}
+
+      <mesh
+        position={[0, 1.24, 0]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.76, 0.82, 1.12, 48]} />
         <meshStandardMaterial
-          color="#3b4650"
-          metalness={0.96}
-          roughness={0.18}
+          color="#313d49"
+          metalness={0.91}
+          roughness={0.22}
+        />
+        <Edges
+          color="#8999a9"
+          threshold={25}
         />
       </mesh>
 
       {/* Chamber lower flange */}
-      <mesh position={[-0.65, 0.03, 0]} castShadow>
-        <cylinderGeometry args={[1.56, 1.56, 0.14, 64]} />
-        <meshStandardMaterial
-          color="#303a44"
-          metalness={0.95}
-          roughness={0.2}
-        />
-      </mesh>
 
-      {/* Top lid */}
-      <mesh position={[-0.65, 2.18, 0]} castShadow>
-        <cylinderGeometry args={[1.3, 1.3, 0.22, 64]} />
+      <mesh
+        position={[0, 0.70, 0]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.90, 0.90, 0.12, 48]} />
         <meshStandardMaterial
-          color="#151c23"
+          color="#657483"
           metalness={0.94}
-          roughness={0.2}
+          roughness={0.20}
         />
       </mesh>
 
-      {/* Inspection window */}
-      <mesh position={[-0.65, 1.08, 1.43]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.48, 0.48, 0.08, 48]} />
+      {/* Chamber upper flange */}
+
+      <mesh
+        position={[0, 1.82, 0]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.88, 0.88, 0.12, 48]} />
+        <meshStandardMaterial
+          color="#657483"
+          metalness={0.94}
+          roughness={0.20}
+        />
+      </mesh>
+
+      {/* =========================
+          TRANSPARENT PROCESS WINDOW
+         ========================= */}
+
+      <mesh
+        position={[0, 1.28, 0.735]}
+      >
+        <boxGeometry args={[1.25, 1.05, 0.045]} />
         <meshPhysicalMaterial
-          color="#5eeaff"
-          transmission={0.65}
+          color="#9edcf0"
           transparent
-          opacity={0.7}
-          roughness={0.08}
-          metalness={0.05}
+          opacity={0.18}
+          transmission={0.72}
+          roughness={0.10}
+          thickness={0.08}
+          ior={1.45}
+        />
+        <Edges
+          color={selected ? '#22d3ee' : '#4b8ba2'}
+          threshold={10}
         />
       </mesh>
 
-      {/* Internal vacuum status glow */}
-      <mesh position={[-0.65, 0.9, 0]}>
-        <cylinderGeometry args={[0.88, 0.88, 0.08, 48]} />
+      {/* Viewport surround */}
+
+      <mesh
+        position={[0, 1.28, 0.77]}
+      >
+        <boxGeometry args={[1.43, 1.22, 0.06]} />
         <meshStandardMaterial
-          color={statusColor}
-          emissive={statusColor}
-          emissiveIntensity={selected ? 2.2 : 0.65}
+          color="#17212b"
+          metalness={0.78}
+          roughness={0.25}
+        />
+      </mesh>
+
+      {/* Re-add glass in front */}
+
+      <mesh
+        position={[0, 1.28, 0.81]}
+      >
+        <boxGeometry args={[1.25, 1.05, 0.035]} />
+        <meshPhysicalMaterial
+          color="#b7e8f7"
           transparent
-          opacity={0.45}
+          opacity={0.12}
+          transmission={0.8}
+          roughness={0.06}
+          thickness={0.05}
         />
       </mesh>
 
-      {/* Vacuum side ports */}
-      <mesh position={[-2.08, 0.95, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.28, 0.28, 0.5, 32]} />
+      {/* =========================
+          CHAMBER LID
+         ========================= */}
+
+      <mesh
+        position={[0, 1.94, 0]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.72, 0.72, 0.18, 48]} />
         <meshStandardMaterial
-          color="#343f49"
-          metalness={0.9}
-          roughness={0.2}
+          color="#202b36"
+          metalness={0.93}
+          roughness={0.19}
         />
       </mesh>
 
-      <mesh position={[0.78, 0.95, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.22, 0.22, 0.42, 32]} />
+      {/* Lid actuator collar */}
+
+      <mesh
+        position={[0, 2.09, 0]}
+      >
+        <cylinderGeometry args={[0.29, 0.34, 0.24, 32]} />
         <meshStandardMaterial
-          color="#303a44"
-          metalness={0.9}
-          roughness={0.2}
+          color="#566574"
+          metalness={0.91}
+          roughness={0.22}
         />
       </mesh>
 
-      {/* Active vacuum sensor port */}
-      <mesh position={[0.82, 1.45, 0.65]} rotation={[0, Math.PI / 2, 0]}>
-        <cylinderGeometry args={[0.11, 0.11, 0.35, 24]} />
+      {/* =========================
+          INTERNAL STAGE SUPPORT
+         ========================= */}
+
+      <mesh
+        position={[0, 0.92, 0]}
+      >
+        <cylinderGeometry args={[0.48, 0.48, 0.10, 48]} />
         <meshStandardMaterial
-          color={statusColor}
-          metalness={0.75}
-          roughness={0.2}
-          emissive={statusColor}
-          emissiveIntensity={1.8}
+          color="#161e27"
+          metalness={0.88}
+          roughness={0.20}
         />
       </mesh>
 
-      {/* Chamber support legs */}
-      {[
-        [-1.55, 0.0, -0.95],
-        [0.25, 0.0, -0.95],
-        [-1.55, 0.0, 0.95],
-        [0.25, 0.0, 0.95],
-      ].map((position, index) => (
-        <mesh key={index} position={position} castShadow>
-          <boxGeometry args={[0.22, 0.75, 0.22]} />
+      {/* Subtle internal chamber glow */}
+
+      <mesh
+        position={[0, 1.32, 0]}
+      >
+        <cylinderGeometry args={[0.57, 0.57, 0.72, 48]} />
+        <meshBasicMaterial
+          color="#164e63"
+          transparent
+          opacity={0.035}
+          side={2}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* =========================
+          SIDE VACUUM PORTS
+         ========================= */}
+
+      <group position={[0.80, 1.30, 0]}>
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.16, 0.16, 0.28, 32]} />
           <meshStandardMaterial
-            color="#202932"
-            metalness={0.86}
-            roughness={0.3}
+            color="#536271"
+            metalness={0.92}
+            roughness={0.22}
           />
         </mesh>
-      ))}
 
-      {/* Status indicator */}
-      <mesh position={[0.9, 2.35, 0.75]}>
-        <sphereGeometry args={[0.075, 20, 20]} />
+        <mesh position={[0.15, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.09, 0.09, 0.08, 24]} />
+          <meshStandardMaterial
+            color={accent}
+            emissive={accent}
+            emissiveIntensity={selected ? 0.5 : 0.08}
+            metalness={0.55}
+            roughness={0.25}
+          />
+        </mesh>
+      </group>
+
+      <group position={[-0.80, 1.30, 0]}>
+        <mesh rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.13, 0.13, 0.22, 28]} />
+          <meshStandardMaterial
+            color="#536271"
+            metalness={0.92}
+            roughness={0.22}
+          />
+        </mesh>
+      </group>
+
+      {/* =========================
+          STATUS INDICATOR
+         ========================= */}
+
+      <mesh position={[0.57, 1.92, 0.30]}>
+        <sphereGeometry args={[0.045, 16, 16]} />
         <meshStandardMaterial
-          color={statusColor}
-          emissive={statusColor}
-          emissiveIntensity={selected ? 3 : 1.5}
+          color={accent}
+          emissive={accent}
+          emissiveIntensity={0.75}
+          toneMapped={false}
         />
       </mesh>
 
-      <SubsystemLabel
-        position={[-0.65, 2.55, 0]}
-        color={selected ? "#00e5ff" : "#9bdcff"}
-        size={0.17}
-      >
-        Vacuum Chamber
-      </SubsystemLabel>
+      {/* Label plate */}
+
+      <mesh position={[0, 2.18, 0.10]}>
+        <boxGeometry args={[0.88, 0.045, 0.03]} />
+        <meshBasicMaterial
+          color={selected ? '#22d3ee' : '#385466'}
+          transparent
+          opacity={selected ? 0.9 : 0.45}
+        />
+      </mesh>
     </group>
-  );
+  )
 }

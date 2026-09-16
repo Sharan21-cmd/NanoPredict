@@ -1,6 +1,4 @@
-import React from "react";
-import * as THREE from "three";
-import { INDUSTRIAL_MATERIALS } from "./materials";
+import React from 'react'
 
 export default function WaferDisk({
   position = [0, 0, 0],
@@ -8,56 +6,68 @@ export default function WaferDisk({
 }) {
   return (
     <group position={position} rotation={rotation}>
-      {/* Main silicon wafer */}
-      <mesh castShadow receiveShadow>
-        <cylinderGeometry args={[1.55, 1.55, 0.055, 96]} />
+      {/* Wafer carrier */}
+
+      <mesh
+        position={[0, 0.025, 0]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.62, 0.62, 0.07, 64]} />
         <meshStandardMaterial
-          color={INDUSTRIAL_MATERIALS.wafer.color}
-          metalness={0.72}
-          roughness={0.2}
+          color="#151c25"
+          metalness={0.94}
+          roughness={0.20}
         />
       </mesh>
 
-      {/* Outer wafer rim */}
-      <mesh position={[0, 0.035, 0]} rotation={[0, 0, 0]}>
-        <torusGeometry args={[1.48, 0.035, 16, 96]} />
+      {/* Wafer */}
+
+      <mesh
+        position={[0, 0.075, 0]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.54, 0.54, 0.035, 96]} />
         <meshStandardMaterial
-          color="#64707c"
-          metalness={0.9}
+          color="#66727e"
+          metalness={0.72}
           roughness={0.18}
         />
       </mesh>
 
-      {/* Inner process ring */}
-      <mesh position={[0, 0.038, 0]}>
-        <torusGeometry args={[1.18, 0.012, 12, 96]} />
+      {/* Wafer surface */}
+
+      <mesh
+        position={[0, 0.095, 0]}
+      >
+        <cylinderGeometry args={[0.50, 0.50, 0.008, 96]} />
         <meshStandardMaterial
-          color="#465564"
-          metalness={0.7}
-          roughness={0.24}
+          color="#73808d"
+          metalness={0.55}
+          roughness={0.16}
         />
       </mesh>
 
-      {/* Center alignment mark */}
-      <mesh position={[0, 0.041, 0]}>
-        <ringGeometry args={[0.16, 0.175, 48]} />
+      {/* Wafer edge ring */}
+
+      <mesh
+        position={[0, 0.102, 0]}
+      >
+        <torusGeometry args={[0.49, 0.012, 10, 96]} />
         <meshStandardMaterial
-          color="#6e7f8e"
-          metalness={0.8}
-          roughness={0.2}
-          side={THREE.DoubleSide}
+          color="#b7c4d0"
+          metalness={0.88}
+          roughness={0.16}
         />
       </mesh>
 
-      {/* Wafer notch */}
-      <mesh position={[0, 0.05, -1.49]}>
-        <boxGeometry args={[0.18, 0.025, 0.12]} />
-        <meshStandardMaterial
-          color="#090d12"
-          metalness={0.45}
-          roughness={0.35}
-        />
+      {/* Wafer center mark */}
+
+      <mesh
+        position={[0.39, 0.101, 0]}
+      >
+        <boxGeometry args={[0.018, 0.006, 0.11]} />
+        <meshBasicMaterial color="#22d3ee" />
       </mesh>
     </group>
-  );
+  )
 }
