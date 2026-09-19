@@ -1,16 +1,45 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { Edges } from '@react-three/drei'
+import { RAIL_CONFIG, mapPositionToRail } from './LinearRail'
+import { WAFER_SURFACE_LOCAL_Y } from './MotorCarriage'
+
+const HEAD_Y = 2.30
+const WAFER_SURFACE_WORLD_Y = RAIL_CONFIG.y + WAFER_SURFACE_LOCAL_Y
+const BEAM_DROP = HEAD_Y - WAFER_SURFACE_WORLD_Y
+
+// The module's existing internal optics already terminate at local y = -0.88
+// (see "Optical path termination" ring below). We extend the beam from
+// there down to the wafer surface. This length is constant because the
+// head and the wafer stage share the same fixed vertical offset — only
+// their shared X position (driven by telemetry) ever changes.
+const INNER_BEAM_END = 0.88
+const OUTER_BEAM_LENGTH = Math.max(BEAM_DROP - INNER_BEAM_END, 0.05)
+const OUTER_BEAM_MID_Y = -(INNER_BEAM_END + BEAM_DROP) / 2
+const BEAM_SPOT_Y = -BEAM_DROP
 
 export default function OpticalModule({
+  positionMm = 0,
   selected = false,
   onSelect,
 }) {
   const accent = selected ? '#67e8f9' : '#22d3ee'
 
+  const xPosition = useMemo(
+    () => mapPositionToRail(positionMm),
+    [positionMm]
+  )
+
+  // Head moves with the stage's exact X/Z, using the same source-of-truth
+  // mapping as MotorCarriage, so the two can never drift apart.
+  const headPosition = useMemo(
+    () => [RAIL_CONFIG.xOffset + xPosition, HEAD_Y, RAIL_CONFIG.z],
+    [xPosition]
+  )
+
   return (
     <group
       name="optical-module"
-      position={[0, 2.30, 0]}
+      position={headPosition}
       onClick={(event) => {
         event.stopPropagation()
         onSelect?.('optical')
@@ -124,6 +153,36 @@ export default function OpticalModule({
           opacity={selected ? 0.55 : 0.20}
           side={2}
           depthWrite={false}
+        />
+      </mesh>
+
+      {/* =========================
+          BEAM EXTENSION TO WAFER
+         ========================= */}
+
+      <mesh position={[0, OUTER_BEAM_MID_Y, 0]}>
+        <cylinderGeometry args={[0.012, 0.02, OUTER_BEAM_LENGTH, 16]} />
+        <meshBasicMaterial
+          color={accent}
+          transparent
+          opacity={selected ? 0.75 : 0.4}
+          depthWrite={false}
+        />
+      </mesh>
+
+      {/* Beam spot on the wafer surface */}
+
+      <mesh
+        position={[0, BEAM_SPOT_Y, 0]}
+        rotation={[Math.PI / 2, 0, 0]}
+      >
+        <circleGeometry args={[0.055, 32]} />
+        <meshBasicMaterial
+          color={accent}
+          transparent
+          opacity={selected ? 0.85 : 0.55}
+          depthWrite={false}
+          toneMapped={false}
         />
       </mesh>
 

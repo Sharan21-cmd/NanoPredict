@@ -1,27 +1,14 @@
 import { useMemo } from 'react'
-import { RAIL_CONFIG } from './LinearRail'
+import { RAIL_CONFIG, mapPositionToRail } from './LinearRail'
 import SubsystemLabel from './SubsystemLabel'
 import WaferDisk from './WaferDisk'
+import WaferTrace from './WaferTrace'
 
-const MIN_POSITION_MM = 0
-const MAX_POSITION_MM = 100
-
-function mapPositionToRail(positionMm) {
-  const clamped = Math.max(
-    MIN_POSITION_MM,
-    Math.min(MAX_POSITION_MM, positionMm)
-  )
-
-  const normalized =
-    (clamped - MIN_POSITION_MM) /
-    (MAX_POSITION_MM - MIN_POSITION_MM)
-
-  return (
-    -RAIL_CONFIG.length / 2 +
-    0.30 +
-    normalized * (RAIL_CONFIG.length - 0.60)
-  )
-}
+// Local-space Y offset from the carriage base up to the wafer's printable
+// surface (matches the WaferDisk placement below + its internal surface
+// mesh offset). Exported so OpticalModule can compute the exact
+// world-space beam drop to the wafer without duplicating this geometry.
+export const WAFER_SURFACE_LOCAL_Y = 0.46 + 0.095
 
 export default function MotorCarriage({
   positionMm = 0,
@@ -124,6 +111,14 @@ export default function MotorCarriage({
         <WaferDisk
           position={[0, 0.46, 0]}
           selected={selected}
+        />
+
+        {/* Persistent lithography trace — driven by telemetry position,
+            not by an independent timer. Renders as a child of the
+            carriage so it tracks the wafer automatically. */}
+        <WaferTrace
+          positionMm={positionMm}
+          position={[0, WAFER_SURFACE_LOCAL_Y, 0]}
         />
 
         {/* Z-axis actuator */}

@@ -191,6 +191,7 @@ export default function Scene({
          ===================================================== */}
 
       <OpticalModule
+        positionMm={stagePosition}
         selected={selectedSubsystem === 'optical'}
         onSelect={onSelectSubsystem}
       />

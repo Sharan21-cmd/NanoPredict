@@ -5,6 +5,30 @@ const RAIL_Y = 0.42
 const RAIL_Z = -0.28
 const RAIL_X_OFFSET = -0.7
 
+export const MIN_POSITION_MM = 0
+export const MAX_POSITION_MM = 100
+
+// Single source of truth for telemetry (mm) -> local rail X mapping.
+// Reused by MotorCarriage (wafer stage), OpticalModule (lithography head)
+// and WaferTrace (printed pattern) so none of them can numerically drift
+// apart from one another.
+export function mapPositionToRail(positionMm) {
+  const clamped = Math.max(
+    MIN_POSITION_MM,
+    Math.min(MAX_POSITION_MM, positionMm)
+  )
+
+  const normalized =
+    (clamped - MIN_POSITION_MM) /
+    (MAX_POSITION_MM - MIN_POSITION_MM)
+
+  return (
+    -RAIL_LENGTH / 2 +
+    0.30 +
+    normalized * (RAIL_LENGTH - 0.60)
+  )
+}
+
 export default function LinearRail({
   selected = false,
   onSelect,
