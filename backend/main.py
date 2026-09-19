@@ -18,13 +18,14 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5178",
-    "http://127.0.0.1:5178",
-    "https://nano-predict.vercel.app",
-    "https://nano-predict-8s12tzn6v-vortex-5d1a.vercel.app"
-],
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5178",
+        "http://127.0.0.1:5178",
+        "https://nano-predict.vercel.app",
+        "https://nano-predict-8s12tzn6v-vortex-5d1a.vercel.app",
+        "https://nano-predict-9wqk10qbg-vortex-5d1a.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
