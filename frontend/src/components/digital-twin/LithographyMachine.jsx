@@ -1,29 +1,17 @@
-import React, { useRef } from 'react'
+import React, { useMemo, useRef } from 'react'
 import * as THREE from 'three'
-import { Edges, Html } from '@react-three/drei'
+import { Edges } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
-
-const NORMAL = '#3ee08a'
-const WARNING = '#ffab3d'
-const CRITICAL = '#ff4d5e'
 
 const MIN_POSITION_MM = 0
 const MAX_POSITION_MM = 100
 
-const UV_FRONT_Z = 1.25
-const UV_REAR_Z = -1.25
-
-function statusColor(status) {
-  if (status === 'critical') return CRITICAL
-  if (status === 'warning') return WARNING
-  return NORMAL
-}
+const RAIL_MIN_X = -1.05
+const RAIL_MAX_X = 1.05
 
 function mapMotorPosition(positionMm) {
-  const numeric = Number(positionMm)
-
   const clamped = THREE.MathUtils.clamp(
-    Number.isFinite(numeric) ? numeric : 0,
+    Number(positionMm) || 0,
     MIN_POSITION_MM,
     MAX_POSITION_MM
   )
@@ -33,880 +21,697 @@ function mapMotorPosition(positionMm) {
     (MAX_POSITION_MM - MIN_POSITION_MM)
 
   return THREE.MathUtils.lerp(
-    UV_FRONT_Z,
-    UV_REAR_Z,
+    RAIL_MIN_X,
+    RAIL_MAX_X,
     normalized
   )
 }
 
-/* ============================================================
+function statusColor(status) {
+  if (status === 'critical') return '#ff4d5e'
+  if (status === 'warning') return '#ffab3d'
+  return '#3ee08a'
+}
+
+/* ---------------------------------------------------------
    MACHINE FRAME
-   ============================================================ */
+--------------------------------------------------------- */
 
 function MachineFrame() {
+  const W = 5.6
+  const H = 5.6
+  const D = 4.6
+
+  const posts = [
+    [-W / 2, -D / 2],
+    [W / 2, -D / 2],
+    [-W / 2, D / 2],
+    [W / 2, D / 2],
+  ]
+
   return (
     <group name="machine-frame">
+      {posts.map(([x, z], i) => (
+        <mesh
+          key={`post-${i}`}
+          position={[x, H / 2 - 1.2, z]}
+          castShadow
+        >
+          <boxGeometry args={[0.26, H, 0.26]} />
+          <meshStandardMaterial
+            color="#8b96a4"
+            metalness={0.85}
+            roughness={0.35}
+          />
+          <Edges color="#2a3646" />
+        </mesh>
+      ))}
 
-      {/* Base */}
-      <mesh
-        position={[0, 0.05, 0]}
-        castShadow
-        receiveShadow
-      >
-        <boxGeometry args={[5.0, 0.35, 3.6]} />
+      <mesh position={[0, H - 1.2, 0]} castShadow>
+        <boxGeometry args={[W + 0.26, 0.26, D + 0.26]} />
         <meshStandardMaterial
-          color="#151d26"
+          color="#454e5c"
           metalness={0.8}
-          roughness={0.35}
+          roughness={0.4}
+        />
+      </mesh>
+
+      <mesh position={[0, -1.35, 0]} receiveShadow>
+        <boxGeometry args={[W + 0.3, 0.3, D + 0.3]} />
+        <meshStandardMaterial
+          color="#454e5c"
+          metalness={0.8}
+          roughness={0.4}
+        />
+      </mesh>
+
+      {/* Left enclosure */}
+      <mesh
+        position={[-W / 2 + 0.55, H / 2 - 1.2, 0]}
+        castShadow
+      >
+        <boxGeometry args={[1.05, H - 0.5, D - 0.3]} />
+        <meshStandardMaterial
+          color="#6c7684"
+          metalness={0.75}
+          roughness={0.42}
+        />
+        <Edges color="#1c2530" />
+      </mesh>
+
+      {/* Right enclosure */}
+      <mesh
+        position={[W / 2 - 0.55, H / 2 - 1.2, 0]}
+        castShadow
+      >
+        <boxGeometry args={[1.05, H - 0.5, D - 0.3]} />
+        <meshStandardMaterial
+          color="#6c7684"
+          metalness={0.75}
+          roughness={0.42}
+        />
+        <Edges color="#1c2530" />
+      </mesh>
+
+      {/* Rear dark panel */}
+      <mesh
+        position={[0, H / 2 - 1.2, -(D / 2 - 0.1)]}
+      >
+        <boxGeometry args={[W - 1.9, H - 0.5, 0.12]} />
+        <meshStandardMaterial
+          color="#141a22"
+          metalness={0.4}
+          roughness={0.6}
+        />
+      </mesh>
+
+      {/* Lower cabinet doors */}
+      {[-1.5, -0.5, 0.5, 1.5].map((x) => (
+        <mesh
+          key={`door-${x}`}
+          position={[x, -0.95, D / 2 - 0.55]}
+          castShadow
+        >
+          <boxGeometry args={[0.9, 1.1, 0.06]} />
+          <meshStandardMaterial
+            color="#6c7684"
+            metalness={0.75}
+            roughness={0.42}
+          />
+          <Edges color="#1c2530" />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/* ---------------------------------------------------------
+   VACUUM CHAMBER
+--------------------------------------------------------- */
+
+function VacuumChamber({ status }) {
+  const color = statusColor(status)
+
+  return (
+    <group
+      name="vacuum-chamber"
+      position={[0, 0.55, 0]}
+    >
+      {/* Transparent chamber */}
+      <mesh
+        position={[0, 1.425, 0]}
+      >
+        <boxGeometry args={[3.1, 3.55, 3.1]} />
+        <meshPhysicalMaterial
+          color={color}
+          transparent
+          opacity={0.13}
+          roughness={0.08}
+          metalness={0}
+          depthWrite={false}
+          side={THREE.DoubleSide}
         />
         <Edges
-          color="#41515f"
+          color={color}
           threshold={15}
         />
       </mesh>
 
-      {/* Upper base plate */}
+      {/* Chamber floor */}
       <mesh
-        position={[0, 0.28, 0]}
-        castShadow
-      >
-        <boxGeometry args={[4.7, 0.18, 3.3]} />
-        <meshStandardMaterial
-          color="#303b46"
-          metalness={0.82}
-          roughness={0.28}
-        />
-      </mesh>
-
-      {/* Left vertical column */}
-      <mesh
-        position={[-2.15, 2.35, 0]}
-        castShadow
-      >
-        <boxGeometry args={[0.30, 4.35, 0.32]} />
-        <meshStandardMaterial
-          color="#293640"
-          metalness={0.82}
-          roughness={0.30}
-        />
-        <Edges color="#526574" />
-      </mesh>
-
-      {/* Right vertical column */}
-      <mesh
-        position={[2.15, 2.35, 0]}
-        castShadow
-      >
-        <boxGeometry args={[0.30, 4.35, 0.32]} />
-        <meshStandardMaterial
-          color="#293640"
-          metalness={0.82}
-          roughness={0.30}
-        />
-        <Edges color="#526574" />
-      </mesh>
-
-      {/* Top beam */}
-      <mesh
-        position={[0, 4.48, 0]}
-        castShadow
-      >
-        <boxGeometry args={[4.6, 0.35, 0.34]} />
-        <meshStandardMaterial
-          color="#364550"
-          metalness={0.84}
-          roughness={0.28}
-        />
-        <Edges color="#607481" />
-      </mesh>
-
-      {/* Rear enclosure */}
-      <mesh
-        position={[0, 2.35, -1.55]}
+        position={[0, -0.32, 0]}
         receiveShadow
       >
-        <boxGeometry args={[4.25, 3.95, 0.14]} />
+        <boxGeometry args={[3.0, 0.06, 3.0]} />
         <meshStandardMaterial
-          color="#111a22"
-          metalness={0.55}
-          roughness={0.55}
+          color="#454e5c"
+          metalness={0.8}
+          roughness={0.4}
         />
       </mesh>
 
-      {/* Lower cabinet */}
-      <mesh
-        position={[0, 0.72, 1.48]}
-        castShadow
-      >
-        <boxGeometry args={[4.35, 0.72, 0.22]} />
-        <meshStandardMaterial
-          color="#202a33"
-          metalness={0.72}
-          roughness={0.35}
-        />
-        <Edges color="#455764" />
-      </mesh>
-
-      {/* Cabinet doors */}
-      {[-1.35, -0.45, 0.45, 1.35].map((x) => (
-        <mesh
-          key={x}
-          position={[x, 0.72, 1.605]}
-        >
-          <boxGeometry args={[0.78, 0.52, 0.025]} />
+      {/* Vertical chamber supports */}
+      {[
+        [1.5, 1.425, 1.5],
+        [-1.5, 1.425, 1.5],
+        [1.5, 1.425, -1.5],
+        [-1.5, 1.425, -1.5],
+      ].map((p, i) => (
+        <mesh key={i} position={p}>
+          <boxGeometry args={[0.07, 3.35, 0.07]} />
           <meshStandardMaterial
-            color="#182129"
-            metalness={0.65}
-            roughness={0.38}
+            color="#454e5c"
+            metalness={0.8}
+            roughness={0.4}
           />
-          <Edges color="#354652" />
         </mesh>
       ))}
-
-      {/* Feet */}
-      {[
-        [-1.9, -1.25],
-        [1.9, -1.25],
-        [-1.9, 1.25],
-        [1.9, 1.25],
-      ].map(([x, z]) => (
-        <group
-          key={`${x}-${z}`}
-          position={[x, -0.16, z]}
-        >
-          <mesh>
-            <cylinderGeometry
-              args={[0.16, 0.20, 0.18, 24]}
-            />
-            <meshStandardMaterial
-              color="#0b1117"
-              metalness={0.75}
-              roughness={0.30}
-            />
-          </mesh>
-
-          <mesh position={[0, -0.10, 0]}>
-            <cylinderGeometry
-              args={[0.13, 0.13, 0.04, 24]}
-            />
-            <meshStandardMaterial
-              color="#53616d"
-              metalness={0.85}
-              roughness={0.25}
-            />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  )
-}
-
-/* ============================================================
-   VACUUM CHAMBER
-   ============================================================ */
-
-function VacuumChamber({ status = 'normal' }) {
-  const accent = statusColor(status)
-
-  return (
-    <group name="vacuum-chamber">
-
-      {/* Chamber back wall */}
-      <mesh
-        position={[0, 2.45, -1.15]}
-        castShadow
-      >
-        <boxGeometry args={[3.55, 3.15, 0.18]} />
-        <meshStandardMaterial
-          color="#31404b"
-          metalness={0.65}
-          roughness={0.32}
-        />
-        <Edges color="#627582" />
-      </mesh>
-
-      {/* Left chamber wall */}
-      <mesh
-        position={[-1.72, 2.45, 0]}
-        castShadow
-      >
-        <boxGeometry args={[0.18, 3.15, 2.55]} />
-        <meshStandardMaterial
-          color="#364650"
-          metalness={0.62}
-          roughness={0.30}
-        />
-        <Edges color="#687c88" />
-      </mesh>
-
-      {/* Right chamber wall */}
-      <mesh
-        position={[1.72, 2.45, 0]}
-        castShadow
-      >
-        <boxGeometry args={[0.18, 3.15, 2.55]} />
-        <meshStandardMaterial
-          color="#364650"
-          metalness={0.62}
-          roughness={0.30}
-        />
-        <Edges color="#687c88" />
-      </mesh>
-
-      {/* Chamber roof */}
-      <mesh
-        position={[0, 4.0, 0]}
-        castShadow
-      >
-        <boxGeometry args={[3.55, 0.18, 2.55]} />
-        <meshStandardMaterial
-          color="#3b4a55"
-          metalness={0.72}
-          roughness={0.28}
-        />
-        <Edges color="#71838e" />
-      </mesh>
-
-      {/* Transparent front window */}
-      <mesh
-        position={[0, 2.45, 1.22]}
-      >
-        <boxGeometry args={[3.25, 2.85, 0.045]} />
-        <meshPhysicalMaterial
-          color="#6b8790"
-          transparent
-          opacity={0.16}
-          roughness={0.12}
-          metalness={0.18}
-          transmission={0.35}
-          thickness={0.04}
-        />
-      </mesh>
-
-      {/* Chamber status strips */}
-      <mesh
-        position={[-1.82, 2.45, 1.30]}
-      >
-        <boxGeometry args={[0.035, 2.65, 0.035]} />
-        <meshStandardMaterial
-          color={accent}
-          emissive={accent}
-          emissiveIntensity={1.4}
-        />
-      </mesh>
-
-      <mesh
-        position={[1.82, 2.45, 1.30]}
-      >
-        <boxGeometry args={[0.035, 2.65, 0.035]} />
-        <meshStandardMaterial
-          color={accent}
-          emissive={accent}
-          emissiveIntensity={1.4}
-        />
-      </mesh>
-
-      {/* Chamber top status light */}
-      <mesh
-        position={[0, 4.08, 1.08]}
-      >
-        <sphereGeometry args={[0.08, 20, 20]} />
-        <meshStandardMaterial
-          color={accent}
-          emissive={accent}
-          emissiveIntensity={2}
-        />
-      </mesh>
 
       {/* Vacuum port */}
-      <group position={[1.35, 3.65, 1.30]}>
-        <mesh rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry
-            args={[0.16, 0.16, 0.12, 32]}
-          />
-          <meshStandardMaterial
-            color="#687781"
-            metalness={0.9}
-            roughness={0.20}
-          />
-        </mesh>
-
-        <mesh position={[0, 0, 0.08]}>
-          <torusGeometry
-            args={[0.12, 0.025, 12, 32]}
-          />
-          <meshStandardMaterial
-            color={accent}
-            emissive={accent}
-            emissiveIntensity={0.8}
-          />
-        </mesh>
-      </group>
-    </group>
-  )
-}
-
-/* ============================================================
-   VIBRATION ISOLATION
-   ============================================================ */
-
-function VibrationIsolation({ status = 'normal' }) {
-  const accent = statusColor(status)
-
-  return (
-    <group name="vibration-isolation">
-
-      {[-1.15, 1.15].map((x) => (
-        <group
-          key={x}
-          position={[x, 0.48, 0]}
-        >
-          <mesh castShadow>
-            <cylinderGeometry
-              args={[0.20, 0.20, 0.22, 32]}
-            />
-            <meshStandardMaterial
-              color="#1b242c"
-              metalness={0.86}
-              roughness={0.24}
-            />
-          </mesh>
-
-          <mesh position={[0, 0.14, 0]}>
-            <cylinderGeometry
-              args={[0.15, 0.15, 0.10, 32]}
-            />
-            <meshStandardMaterial
-              color="#53616d"
-              metalness={0.9}
-              roughness={0.2}
-            />
-          </mesh>
-
-          <mesh position={[0, 0.22, 0]}>
-            <torusGeometry
-              args={[0.14, 0.018, 10, 32]}
-            />
-            <meshStandardMaterial
-              color={accent}
-              emissive={accent}
-              emissiveIntensity={0.8}
-            />
-          </mesh>
-        </group>
-      ))}
-
-      <mesh position={[0, 0.58, 0]}>
-        <boxGeometry args={[2.75, 0.12, 1.55]} />
+      <mesh position={[1.62, 1.5, 0]}>
+        <cylinderGeometry
+          args={[0.18, 0.18, 0.35, 24]}
+        />
         <meshStandardMaterial
-          color="#202a33"
-          metalness={0.82}
-          roughness={0.25}
+          color="#454e5c"
+          metalness={0.85}
+          roughness={0.3}
         />
       </mesh>
     </group>
   )
 }
 
-/* ============================================================
+/* ---------------------------------------------------------
    WAFER
-   ============================================================ */
+--------------------------------------------------------- */
 
 function Wafer() {
+  const texture = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = 512
+    canvas.height = 512
+
+    const ctx = canvas.getContext('2d')
+
+    const gradient = ctx.createRadialGradient(
+      256,
+      256,
+      20,
+      256,
+      256,
+      250
+    )
+
+    gradient.addColorStop(0, '#a9b4c2')
+    gradient.addColorStop(0.55, '#8c97a6')
+    gradient.addColorStop(1, '#6b7684')
+
+    ctx.fillStyle = gradient
+    ctx.beginPath()
+    ctx.arc(256, 256, 250, 0, Math.PI * 2)
+    ctx.fill()
+
+    /* wafer die grid */
+    ctx.strokeStyle = 'rgba(20,28,38,0.35)'
+    ctx.lineWidth = 1
+
+    for (let x = 30; x <= 480; x += 26) {
+      ctx.beginPath()
+      ctx.moveTo(x, 10)
+      ctx.lineTo(x, 502)
+      ctx.stroke()
+    }
+
+    for (let y = 30; y <= 480; y += 26) {
+      ctx.beginPath()
+      ctx.moveTo(10, y)
+      ctx.lineTo(502, y)
+      ctx.stroke()
+    }
+
+    return new THREE.CanvasTexture(canvas)
+  }, [])
+
   return (
-    <group
-      name="wafer"
-      position={[0, 1.08, 0]}
-    >
-
-      {/* Main wafer disk
-          Cylinder axis = Y
-          Therefore the wafer is horizontal. */}
-      <mesh
-        castShadow
-        receiveShadow
-      >
-        <cylinderGeometry
-          args={[0.92, 0.92, 0.065, 96]}
-        />
+    <group position={[0, 0.335, 0]}>
+      <mesh castShadow receiveShadow>
+        <cylinderGeometry args={[0.78, 0.78, 0.022, 96]} />
         <meshStandardMaterial
-          color="#aebbc5"
-          metalness={0.82}
-          roughness={0.23}
+          map={texture}
+          metalness={0.55}
+          roughness={0.32}
         />
       </mesh>
 
-      {/* Wafer outer rim */}
-      <mesh position={[0, 0.038, 0]}>
-        <torusGeometry
-          args={[0.865, 0.025, 12, 96]}
-        />
+      {/* Wafer edge */}
+      <mesh>
+        <torusGeometry args={[0.78, 0.018, 8, 96]} />
         <meshStandardMaterial
-          color="#657580"
-          metalness={0.9}
-          roughness={0.18}
+          color="#4fd8ff"
+          metalness={0.8}
+          roughness={0.3}
         />
       </mesh>
 
-      {/* Wafer inner processing area */}
-      <mesh position={[0, 0.039, 0]}>
-        <cylinderGeometry
-          args={[0.78, 0.78, 0.008, 96]}
-        />
-        <meshStandardMaterial
-          color="#d0d9df"
-          metalness={0.65}
-          roughness={0.20}
-        />
-      </mesh>
-
-      {/* Wafer center mark */}
-      <mesh position={[0, 0.045, 0]}>
-        <torusGeometry
-          args={[0.12, 0.012, 10, 32]}
-        />
-        <meshStandardMaterial
-          color="#73828c"
-          metalness={0.65}
-          roughness={0.25}
-        />
-      </mesh>
-
-      {/* Wafer notch */}
-      <mesh
-        position={[0, 0.045, -0.895]}
-        rotation={[0, 0, 0]}
-      >
-        <boxGeometry args={[0.10, 0.012, 0.08]} />
-        <meshStandardMaterial
-          color="#39454e"
-          metalness={0.5}
-          roughness={0.35}
-        />
+      {/* Center alignment mark */}
+      <mesh position={[0, 0.018, 0]}>
+        <torusGeometry args={[0.08, 0.012, 8, 32]} />
+        <meshBasicMaterial color="#4fd8ff" />
       </mesh>
     </group>
   )
 }
 
-/* ============================================================
-   WAFER STAGE
-   ============================================================ */
+/* ---------------------------------------------------------
+   MOTOR-DRIVEN WAFER STAGE
+--------------------------------------------------------- */
 
 function MotorDrivenStage({
-  displacementStatus = 'normal',
-}) {
-  const accent = statusColor(displacementStatus)
-
-  return (
-    <group
-      name="wafer-stage"
-      position={[0, 0, 0]}
-    >
-
-      {/* Precision stage body */}
-      <mesh
-        position={[0, 0.78, 0]}
-        castShadow
-      >
-        <boxGeometry args={[2.65, 0.28, 1.65]} />
-        <meshStandardMaterial
-          color="#252f38"
-          metalness={0.88}
-          roughness={0.22}
-        />
-        <Edges color="#566975" />
-      </mesh>
-
-      {/* Stage top */}
-      <mesh
-        position={[0, 0.96, 0]}
-        castShadow
-      >
-        <boxGeometry args={[2.25, 0.10, 1.35]} />
-        <meshStandardMaterial
-          color="#414e58"
-          metalness={0.90}
-          roughness={0.20}
-        />
-      </mesh>
-
-      {/* Circular wafer support */}
-      <mesh
-        position={[0, 1.00, 0]}
-        castShadow
-      >
-        <cylinderGeometry
-          args={[1.03, 1.03, 0.10, 64]}
-        />
-        <meshStandardMaterial
-          color="#171e25"
-          metalness={0.88}
-          roughness={0.23}
-        />
-      </mesh>
-
-      {/* Stage status ring */}
-      <mesh
-        position={[0, 1.055, 0]}
-      >
-        <torusGeometry
-          args={[1.01, 0.025, 12, 64]}
-        />
-        <meshStandardMaterial
-          color={accent}
-          emissive={accent}
-          emissiveIntensity={0.7}
-          metalness={0.7}
-          roughness={0.2}
-        />
-      </mesh>
-
-      <Wafer />
-
-      {/* Linear actuator underneath */}
-      <group position={[0, 0.47, 0]}>
-        <mesh
-          rotation={[Math.PI / 2, 0, 0]}
-          castShadow
-        >
-          <cylinderGeometry
-            args={[0.13, 0.13, 1.25, 32]}
-          />
-          <meshStandardMaterial
-            color="#333e47"
-            metalness={0.92}
-            roughness={0.20}
-          />
-        </mesh>
-
-        <mesh
-          position={[0, 0, 0.65]}
-          rotation={[Math.PI / 2, 0, 0]}
-        >
-          <cylinderGeometry
-            args={[0.09, 0.09, 0.08, 24]}
-          />
-          <meshStandardMaterial
-            color="#98a5ae"
-            metalness={0.96}
-            roughness={0.15}
-          />
-        </mesh>
-      </group>
-
-      {/* Positioning actuators */}
-      {[
-        [-1.10, 0.60],
-        [1.10, 0.60],
-        [-1.10, -0.60],
-        [1.10, -0.60],
-      ].map(([x, z]) => (
-        <group
-          key={`${x}-${z}`}
-          position={[x, 0.96, z]}
-        >
-          <mesh>
-            <cylinderGeometry
-              args={[0.055, 0.055, 0.20, 20]}
-            />
-            <meshStandardMaterial
-              color="#8996a0"
-              metalness={0.92}
-              roughness={0.18}
-            />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  )
-}
-
-/* ============================================================
-   OPTICAL / UV MODULE
-   ============================================================ */
-
-function OpticalModule({
-  positionMm = 0,
-  temperatureStatus = 'normal',
+  positionMm,
+  displacementStatus,
 }) {
   const groupRef = useRef(null)
-  const accent = statusColor(temperatureStatus)
+
+  const x = mapMotorPosition(positionMm)
+  const status = statusColor(displacementStatus)
 
   useFrame(() => {
     if (!groupRef.current) return
 
-    const targetZ = mapMotorPosition(positionMm)
-
-    groupRef.current.position.z = THREE.MathUtils.lerp(
-      groupRef.current.position.z,
-      targetZ,
-      0.08
+    /*
+     * IMPORTANT:
+     * The backend motor position directly controls this assembly.
+     *
+     * Smooth interpolation is only visual smoothing.
+     * The target remains telemetry.stage.positionMm.
+     */
+    groupRef.current.position.x = THREE.MathUtils.lerp(
+      groupRef.current.position.x,
+      x,
+      0.16
     )
   })
 
   return (
     <group
-      name="optical-module"
       ref={groupRef}
-      position={[0, 0, mapMotorPosition(positionMm)]}
+      name="motor-driven-wafer-stage"
+      position={[x, 0.55, 0]}
     >
-
-      {/* Optical support arm */}
+      {/* Base */}
       <mesh
-        position={[0, 4.10, 0]}
+        position={[0, 0.11, 0]}
         castShadow
+        receiveShadow
       >
-        <boxGeometry args={[0.62, 0.24, 0.62]} />
+        <cylinderGeometry args={[1.05, 1.15, 0.22, 48]} />
         <meshStandardMaterial
-          color="#35434d"
-          metalness={0.86}
-          roughness={0.22}
+          color="#454e5c"
+          metalness={0.8}
+          roughness={0.4}
         />
-        <Edges color="#60737e" />
+        <Edges color="#4fd8ff" />
       </mesh>
 
-      {/* Main optical housing */}
+      {/* Collar */}
       <mesh
-        position={[0, 3.62, 0]}
+        position={[0, 0.27, 0]}
         castShadow
       >
-        <cylinderGeometry
-          args={[0.38, 0.48, 0.72, 48]}
-        />
+        <cylinderGeometry args={[0.95, 0.95, 0.1, 48]} />
         <meshStandardMaterial
-          color="#697781"
-          metalness={0.90}
-          roughness={0.18}
-        />
-      </mesh>
-
-      {/* Housing upper collar */}
-      <mesh
-        position={[0, 4.00, 0]}
-      >
-        <torusGeometry
-          args={[0.31, 0.045, 12, 48]}
-        />
-        <meshStandardMaterial
-          color={accent}
-          emissive={accent}
-          emissiveIntensity={1.0}
+          color="#6c7684"
           metalness={0.75}
-          roughness={0.18}
+          roughness={0.42}
         />
       </mesh>
 
-      {/* Lower lens housing */}
+      {/* Central support */}
       <mesh
-        position={[0, 3.18, 0]}
+        position={[0, -0.28, 0]}
         castShadow
       >
-        <cylinderGeometry
-          args={[0.27, 0.21, 0.30, 40]}
-        />
+        <cylinderGeometry args={[0.22, 0.38, 0.55, 24]} />
         <meshStandardMaterial
-          color="#c2ccd2"
-          metalness={0.88}
-          roughness={0.12}
+          color="#8b96a4"
+          metalness={0.85}
+          roughness={0.35}
         />
       </mesh>
 
-      {/* Lens */}
+      {/* Wafer */}
+      <Wafer />
+
+      {/* Status ring */}
       <mesh
-        position={[0, 3.00, 0]}
+        rotation={[Math.PI / 2, 0, 0]}
+        position={[0, 0.28, 0]}
       >
-        <cylinderGeometry
-          args={[0.18, 0.18, 0.07, 40]}
-        />
-        <meshPhysicalMaterial
-          color="#74d9ff"
-          emissive="#176b9a"
-          emissiveIntensity={0.55}
-          transmission={0.65}
+        <torusGeometry args={[0.97, 0.012, 8, 64]} />
+        <meshBasicMaterial
+          color={status}
           transparent
-          opacity={0.85}
-          roughness={0.08}
-          metalness={0.15}
+          opacity={0.9}
         />
       </mesh>
 
-      {/* UV beam */}
+      {/* Motor underneath stage */}
       <mesh
-        position={[0, 2.03, 0]}
+        position={[0, -0.55, -0.45]}
+        rotation={[Math.PI / 2, 0, 0]}
+      >
+        <cylinderGeometry args={[0.18, 0.18, 0.42, 24]} />
+        <meshStandardMaterial
+          color="#222831"
+          metalness={0.9}
+          roughness={0.28}
+        />
+      </mesh>
+
+      {/* Motor shaft */}
+      <mesh
+        position={[0, -0.55, -0.72]}
+        rotation={[Math.PI / 2, 0, 0]}
+      >
+        <cylinderGeometry args={[0.06, 0.06, 0.22, 16]} />
+        <meshStandardMaterial
+          color="#8b96a4"
+          metalness={0.9}
+          roughness={0.25}
+        />
+      </mesh>
+
+      {/* Positioning actuators move WITH the stage */}
+      {[
+        [0.82, 0.35],
+        [-0.82, 0.35],
+        [0.82, -0.35],
+        [-0.82, -0.35],
+      ].map(([px, pz], i) => (
+        <group
+          key={i}
+          position={[px, 0.35, pz]}
+        >
+          <mesh>
+            <cylinderGeometry
+              args={[0.07, 0.07, 0.42, 16]}
+            />
+            <meshStandardMaterial
+              color="#6c7684"
+              metalness={0.8}
+              roughness={0.4}
+            />
+          </mesh>
+
+          <mesh position={[0, 0.23, 0]}>
+            <sphereGeometry args={[0.035, 12, 12]} />
+            <meshBasicMaterial color="#3ee08a" />
+          </mesh>
+        </group>
+      ))}
+    </group>
+  )
+}
+
+/* ---------------------------------------------------------
+   VIBRATION ISOLATION
+--------------------------------------------------------- */
+
+function VibrationIsolation({ status }) {
+  const color = statusColor(status)
+
+  return (
+    <group
+      name="vibration-isolation"
+      position={[0, 0.55, 0]}
+    >
+      <mesh position={[0, -0.62, 0]}>
+        <cylinderGeometry args={[1.5, 1.5, 0.1, 48]} />
+        <meshStandardMaterial
+          color="#454e5c"
+          metalness={0.8}
+          roughness={0.4}
+        />
+      </mesh>
+
+      {[
+        [1.05, 1.05],
+        [-1.05, 1.05],
+        [1.05, -1.05],
+        [-1.05, -1.05],
+      ].map(([x, z], i) => (
+        <group key={i}>
+          <mesh position={[x, -0.85, z]}>
+            <cylinderGeometry
+              args={[0.12, 0.12, 0.5, 16, 6, true]}
+            />
+            <meshStandardMaterial
+              color="#394252"
+              metalness={0.7}
+              roughness={0.4}
+            />
+          </mesh>
+
+          <mesh position={[x, -1.12, z]}>
+            <cylinderGeometry
+              args={[0.17, 0.17, 0.08, 16]}
+            />
+            <meshStandardMaterial
+              color="#8b96a4"
+              metalness={0.85}
+              roughness={0.35}
+            />
+          </mesh>
+        </group>
+      ))}
+
+      <mesh
+        rotation={[Math.PI / 2, 0, 0]}
+        position={[0, -0.57, 0]}
+      >
+        <torusGeometry args={[1.5, 0.02, 8, 48]} />
+        <meshBasicMaterial
+          color={color}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+    </group>
+  )
+}
+
+/* ---------------------------------------------------------
+   OPTICAL / LASER MODULE
+--------------------------------------------------------- */
+
+function OpticalModule({ temperatureStatus }) {
+  const beamRef = useRef(null)
+  const housingColor = statusColor(temperatureStatus)
+
+  useFrame(({ clock }) => {
+    if (!beamRef.current) return
+
+    beamRef.current.material.opacity =
+      0.35 + Math.sin(clock.getElapsedTime() * 2.2) * 0.12
+  })
+
+  return (
+    <group
+      name="optical-module"
+      position={[0, 0.55, 0]}
+    >
+      {/* Housing */}
+      <mesh
+        position={[0, 3.55, 0]}
+        castShadow
+      >
+        <cylinderGeometry args={[0.5, 0.62, 0.9, 24]} />
+        <meshStandardMaterial
+          color={housingColor}
+          metalness={0.75}
+          roughness={0.42}
+          emissive={housingColor}
+          emissiveIntensity={
+            temperatureStatus === 'critical'
+              ? 0.30
+              : temperatureStatus === 'warning'
+                ? 0.15
+                : 0.02
+          }
+        />
+      </mesh>
+
+      {/* Lens stack */}
+      {[0, 1, 2].map((i) => (
+        <mesh
+          key={i}
+          position={[0, 3.05 - i * 0.16, 0]}
+        >
+          <cylinderGeometry
+            args={[
+              0.34 - i * 0.05,
+              0.34 - i * 0.05,
+              0.1,
+              24,
+            ]}
+          />
+          <meshPhysicalMaterial
+            color="#4fd8ff"
+            transparent
+            opacity={0.45}
+            roughness={0.1}
+            metalness={0.1}
+            emissive="#1c6fa0"
+            emissiveIntensity={0.4}
+          />
+        </mesh>
+      ))}
+
+      {/* Collar */}
+      <mesh
+        rotation={[Math.PI / 2, 0, 0]}
+        position={[0, 2.6, 0]}
+      >
+        <torusGeometry args={[0.28, 0.05, 10, 24]} />
+        <meshStandardMaterial
+          color="#454e5c"
+          metalness={0.85}
+          roughness={0.3}
+        />
+      </mesh>
+
+      {/* Support struts */}
+      {[-0.42, 0.42].map((x) => (
+        <mesh
+          key={x}
+          position={[x, 3.15, 0]}
+        >
+          <boxGeometry args={[0.06, 0.9, 0.06]} />
+          <meshStandardMaterial
+            color="#8b96a4"
+            metalness={0.85}
+            roughness={0.35}
+          />
+        </mesh>
+      ))}
+
+      {/* Laser beam */}
+      <mesh
+        ref={beamRef}
+        position={[0, 1.6, 0]}
       >
         <cylinderGeometry
-          args={[0.055, 0.12, 1.85, 32]}
+          args={[0.05, 0.13, 2.55, 16, 1, true]}
         />
         <meshBasicMaterial
-          color="#38bdf8"
+          color="#6fe4ff"
           transparent
-          opacity={0.16}
+          opacity={0.5}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
       </mesh>
 
       {/* Beam core */}
-      <mesh
-        position={[0, 2.03, 0]}
-      >
+      <mesh position={[0, 1.6, 0]}>
         <cylinderGeometry
-          args={[0.018, 0.030, 1.85, 24]}
+          args={[0.012, 0.012, 2.6, 8, 1, true]}
         />
         <meshBasicMaterial
-          color="#9be7ff"
+          color="#dff8ff"
           transparent
-          opacity={0.72}
+          opacity={0.85}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
       </mesh>
 
-      {/* Beam spot on wafer */}
+      {/* Beam spot */}
       <mesh
-        position={[0, 1.10, 0]}
-        rotation={[-Math.PI / 2, 0, 0]}
+        rotation={[Math.PI / 2, 0, 0]}
+        position={[0, 0.335 + 0.55, 0]}
       >
-        <circleGeometry args={[0.16, 48]} />
+        <circleGeometry args={[0.12, 32]} />
         <meshBasicMaterial
-          color="#55dfff"
+          color="#6fe4ff"
           transparent
-          opacity={0.38}
+          opacity={0.7}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
       </mesh>
-
-      {/* Support struts */}
-      {[-0.25, 0.25].map((x) => (
-        <mesh
-          key={x}
-          position={[x, 4.05, 0]}
-          castShadow
-        >
-          <boxGeometry args={[0.07, 0.38, 0.07]} />
-          <meshStandardMaterial
-            color="#53636e"
-            metalness={0.86}
-            roughness={0.22}
-          />
-        </mesh>
-      ))}
     </group>
   )
 }
 
-/* ============================================================
+/* ---------------------------------------------------------
    SENSOR NODE
-   ============================================================ */
+--------------------------------------------------------- */
 
 function SensorNode({
   position,
   status,
-  label,
-  value,
 }) {
+  const haloRef = useRef(null)
   const color = statusColor(status)
 
+  useFrame(({ clock }) => {
+    if (!haloRef.current) return
+
+    const scale =
+      1 + Math.sin(clock.getElapsedTime() * 3) * 0.18
+
+    haloRef.current.scale.setScalar(scale)
+  })
+
   return (
-    <group
-      position={position}
-      name={`sensor-${label}`}
-    >
-
-      {/* Mount */}
-      <mesh
-        rotation={[Math.PI / 2, 0, 0]}
-      >
-        <cylinderGeometry
-          args={[0.11, 0.11, 0.08, 24]}
-        />
-        <meshStandardMaterial
-          color="#18222a"
-          metalness={0.88}
-          roughness={0.22}
-        />
+    <group position={position}>
+      <mesh>
+        <sphereGeometry args={[0.055, 12, 12]} />
+        <meshBasicMaterial color={color} />
       </mesh>
 
-      {/* Indicator */}
-      <mesh position={[0, 0, 0.07]}>
-        <sphereGeometry args={[0.075, 24, 24]} />
-        <meshStandardMaterial
+      <mesh ref={haloRef}>
+        <sphereGeometry args={[0.09, 12, 12]} />
+        <meshBasicMaterial
           color={color}
-          emissive={color}
-          emissiveIntensity={2.5}
+          transparent
+          opacity={0.35}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
         />
       </mesh>
-
-      {/* Outer ring */}
-      <mesh
-        position={[0, 0, 0.075]}
-        rotation={[Math.PI / 2, 0, 0]}
-      >
-        <torusGeometry
-          args={[0.10, 0.012, 10, 32]}
-        />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={1.2}
-        />
-      </mesh>
-
-      {/* Visible technical label */}
-      <Html
-        position={[0.14, 0.02, 0.08]}
-        center={false}
-        distanceFactor={7}
-        transform
-        sprite
-      >
-        <div
-          style={{
-            pointerEvents: 'none',
-            minWidth: '92px',
-            padding: '5px 7px',
-            background: 'rgba(4, 8, 13, 0.88)',
-            border: `1px solid ${color}`,
-            borderRadius: '3px',
-            color: '#dbeafe',
-            fontFamily: 'monospace',
-            fontSize: '9px',
-            lineHeight: '1.35',
-            whiteSpace: 'nowrap',
-            boxShadow: `0 0 10px ${color}33`,
-          }}
-        >
-          <div
-            style={{
-              color,
-              fontWeight: 700,
-            }}
-          >
-            ● {label}
-          </div>
-
-          <div
-            style={{
-              color: '#94a3b8',
-              marginTop: '2px',
-            }}
-          >
-            {value}
-          </div>
-        </div>
-      </Html>
     </group>
   )
 }
 
-/* ============================================================
-   MAIN LITHOGRAPHY MACHINE
-   ============================================================ */
+/* ---------------------------------------------------------
+   MAIN MACHINE
+--------------------------------------------------------- */
 
 export default function LithographyMachine({
   positionMm = 0,
-
   statuses = {
     pressure: 'normal',
     vibration: 'normal',
@@ -916,72 +721,47 @@ export default function LithographyMachine({
 }) {
   return (
     <group name="LithographyMachine">
-
-      {/* Main machine */}
       <MachineFrame />
 
-      {/* Vacuum chamber */}
       <VacuumChamber
         status={statuses.pressure}
       />
 
-      {/* Vibration isolation */}
       <VibrationIsolation
         status={statuses.vibration}
       />
 
-      {/* Fixed wafer stage */}
       <MotorDrivenStage
-        displacementStatus={
-          statuses.displacement
-        }
-      />
-
-      {/* Moving optical / UV module */}
-      <OpticalModule
         positionMm={positionMm}
-        temperatureStatus={
-          statuses.temperature
-        }
+        displacementStatus={statuses.displacement}
       />
 
-      {/* ======================================================
-          FOUR VISIBLE SENSOR INDICATORS
+      <OpticalModule
+        temperatureStatus={statuses.temperature}
+      />
 
-          Pressure      → Vacuum chamber
-          Vibration     → Isolation system
-          Temperature   → Optical module
-          Displacement  → Wafer stage
-         ====================================================== */}
-
+      {/* Sensor markers */}
       <SensorNode
-        position={[1.95, 3.55, 1.42]}
+        position={[1.35, 3.45, 1.35]}
         status={statuses.pressure}
-        label="PRESSURE"
-        value={statuses.pressure.toUpperCase()}
       />
 
       <SensorNode
-        position={[-1.95, 1.05, 1.42]}
+        position={[1.05, -0.07, 1.05]}
         status={statuses.vibration}
-        label="VIBRATION"
-        value={statuses.vibration.toUpperCase()}
       />
 
       <SensorNode
-        position={[1.25, 4.32, 1.40]}
+        position={[0.55, 4.10, 0]}
         status={statuses.temperature}
-        label="TEMPERATURE"
-        value={statuses.temperature.toUpperCase()}
       />
 
       <SensorNode
-        position={[-1.25, 1.10, 1.42]}
+        position={[0.95, 0.95, -0.6]}
         status={statuses.displacement}
-        label="DISPLACEMENT"
-        value={statuses.displacement.toUpperCase()}
       />
-
     </group>
   )
 }
+
+export { mapMotorPosition }

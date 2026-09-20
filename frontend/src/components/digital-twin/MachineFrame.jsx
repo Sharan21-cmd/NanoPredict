@@ -1,34 +1,109 @@
 import React from 'react'
 import { Edges } from '@react-three/drei'
 
-const PANEL = '#27313d'
-const PANEL_DARK = '#151c25'
-const METAL = '#667382'
-const EDGE = '#8ea0b2'
-const INNER = '#0d151e'
+const BODY = '#252d36'
+const BODY_LIGHT = '#303a45'
+const BODY_DARK = '#151c24'
+const METAL = '#657382'
+const METAL_DARK = '#3d4955'
+const BLACK = '#080d12'
+const GLASS = '#111b23'
 
-function Panel({
+function SolidPanel({
   position,
   scale,
-  color = PANEL,
-  bevel = false,
+  color = BODY,
+  metalness = 0.78,
+  roughness = 0.30,
+  edges = true,
 }) {
   return (
-    <mesh position={position} scale={scale} castShadow receiveShadow>
+    <mesh
+      position={position}
+      scale={scale}
+      castShadow
+      receiveShadow
+    >
       <boxGeometry args={[1, 1, 1]} />
       <meshStandardMaterial
         color={color}
-        metalness={0.82}
-        roughness={0.28}
+        metalness={metalness}
+        roughness={roughness}
       />
-      {bevel && (
+
+      {edges && (
         <Edges
-          color={EDGE}
-          threshold={18}
-          scale={1.003}
+          color={METAL}
+          threshold={20}
+          scale={1.002}
         />
       )}
     </mesh>
+  )
+}
+
+function DarkPanel({
+  position,
+  scale,
+}) {
+  return (
+    <mesh
+      position={position}
+      scale={scale}
+      castShadow
+      receiveShadow
+    >
+      <boxGeometry args={[1, 1, 1]} />
+      <meshStandardMaterial
+        color={BLACK}
+        metalness={0.35}
+        roughness={0.48}
+      />
+    </mesh>
+  )
+}
+
+function Vent({
+  position,
+  rotation = [0, 0, 0],
+  count = 7,
+}) {
+  return (
+    <group
+      position={position}
+      rotation={rotation}
+    >
+      {Array.from({ length: count }).map((_, index) => (
+        <mesh
+          key={index}
+          position={[(index - (count - 1) / 2) * 0.11, 0, 0]}
+        >
+          <boxGeometry args={[0.045, 0.28, 0.018]} />
+          <meshStandardMaterial
+            color="#0a1016"
+            metalness={0.45}
+            roughness={0.42}
+          />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+function StatusLight({ position }) {
+  return (
+    <group position={position}>
+      <mesh>
+        <cylinderGeometry args={[0.035, 0.035, 0.018, 20]} />
+        <meshStandardMaterial
+          color="#18343b"
+          emissive="#0b5963"
+          emissiveIntensity={0.55}
+          metalness={0.4}
+          roughness={0.28}
+        />
+      </mesh>
+    </group>
   )
 }
 
@@ -36,7 +111,7 @@ export default function MachineFrame({
   selected = false,
   onSelect,
 }) {
-  const edgeColor = selected ? '#22d3ee' : EDGE
+  const accent = selected ? '#22d3ee' : '#58717d'
 
   return (
     <group
@@ -46,267 +121,463 @@ export default function MachineFrame({
         onSelect?.('machine')
       }}
     >
-      {/* =========================
-          LOWER MACHINE BASE
-         ========================= */}
 
-      <Panel
-        position={[0, 0.12, 0]}
-        scale={[4.8, 0.24, 3.35]}
-        color={PANEL_DARK}
-        bevel
+      {/* =====================================================
+          MACHINE FOOTPRINT
+         ===================================================== */}
+
+      <SolidPanel
+        position={[0, 0.16, 0]}
+        scale={[5.15, 0.32, 3.55]}
+        color={BODY_DARK}
+        metalness={0.72}
+        roughness={0.36}
       />
 
-      <Panel
-        position={[0, 0.29, 0]}
-        scale={[4.55, 0.12, 3.08]}
-        color="#35414e"
-        bevel
+      <SolidPanel
+        position={[0, 0.37, 0]}
+        scale={[4.82, 0.12, 3.28]}
+        color="#39444f"
+        metalness={0.82}
+        roughness={0.28}
       />
 
-      {/* Front lower equipment fascia */}
+      {/* Small mechanical feet */}
 
-      <Panel
-        position={[0, 0.48, 1.48]}
-        scale={[4.35, 0.40, 0.16]}
-        color="#303b47"
-        bevel
+      {[
+        [-2.05, 0.02, -1.25],
+        [2.05, 0.02, -1.25],
+        [-2.05, 0.02, 1.25],
+        [2.05, 0.02, 1.25],
+      ].map(([x, y, z], index) => (
+        <group key={index} position={[x, y, z]}>
+          <mesh castShadow>
+            <cylinderGeometry args={[0.16, 0.19, 0.18, 24]} />
+            <meshStandardMaterial
+              color="#11171d"
+              metalness={0.75}
+              roughness={0.30}
+            />
+          </mesh>
+
+          <mesh position={[0, -0.095, 0]}>
+            <cylinderGeometry args={[0.13, 0.13, 0.035, 24]} />
+            <meshStandardMaterial
+              color="#56636f"
+              metalness={0.85}
+              roughness={0.26}
+            />
+          </mesh>
+        </group>
+      ))}
+
+
+      {/* =====================================================
+          LOWER FRONT EQUIPMENT CABINET
+         ===================================================== */}
+
+      <SolidPanel
+        position={[0, 0.67, 1.49]}
+        scale={[4.55, 0.52, 0.22]}
+        color={BODY_LIGHT}
       />
 
-      {/* Front access panels */}
+      {/* Service doors */}
 
       {[-1.55, -0.52, 0.52, 1.55].map((x) => (
         <group key={x}>
           <mesh
-            position={[x, 0.50, 1.575]}
+            position={[x, 0.67, 1.615]}
             castShadow
           >
-            <boxGeometry args={[0.88, 0.34, 0.035]} />
+            <boxGeometry args={[0.91, 0.38, 0.035]} />
             <meshStandardMaterial
-              color="#202a35"
+              color="#202932"
               metalness={0.72}
-              roughness={0.32}
+              roughness={0.34}
+            />
+
+            <Edges
+              color="#53616e"
+              threshold={20}
             />
           </mesh>
+
+          {/* Door handle */}
 
           <mesh
-            position={[x, 0.50, 1.598]}
+            position={[x, 0.67, 1.642]}
           >
-            <boxGeometry args={[0.72, 0.018, 0.012]} />
+            <boxGeometry args={[0.38, 0.025, 0.018]} />
             <meshStandardMaterial
-              color="#536272"
-              metalness={0.8}
-              roughness={0.24}
+              color="#687887"
+              metalness={0.88}
+              roughness={0.22}
             />
           </mesh>
         </group>
       ))}
 
-      {/* =========================
-          LEFT / RIGHT ENCLOSURE
-         ========================= */}
 
-      <Panel
-        position={[-2.18, 1.55, 0]}
-        scale={[0.30, 2.65, 3.0]}
-        color="#303b47"
-        bevel
+      {/* =====================================================
+          LEFT / RIGHT MAIN ENCLOSURE
+         ===================================================== */}
+
+      <SolidPanel
+        position={[-2.30, 1.78, 0]}
+        scale={[0.42, 2.55, 3.20]}
+        color={BODY}
       />
 
-      <Panel
-        position={[2.18, 1.55, 0]}
-        scale={[0.30, 2.65, 3.0]}
-        color="#303b47"
-        bevel
+      <SolidPanel
+        position={[2.30, 1.78, 0]}
+        scale={[0.42, 2.55, 3.20]}
+        color={BODY}
       />
 
-      {/* Outer side silver strips */}
+      {/* Outer vertical metal rails */}
 
-      <Panel
-        position={[-2.37, 1.58, 0]}
-        scale={[0.07, 2.50, 2.82]}
-        color="#7c8997"
+      <SolidPanel
+        position={[-2.53, 1.80, 0]}
+        scale={[0.075, 2.38, 3.00]}
+        color={METAL}
+        metalness={0.92}
+        roughness={0.22}
+        edges={false}
       />
 
-      <Panel
-        position={[2.37, 1.58, 0]}
-        scale={[0.07, 2.50, 2.82]}
-        color="#7c8997"
+      <SolidPanel
+        position={[2.53, 1.80, 0]}
+        scale={[0.075, 2.38, 3.00]}
+        color={METAL}
+        metalness={0.92}
+        roughness={0.22}
+        edges={false}
       />
 
-      {/* =========================
-          REAR STRUCTURE
-         ========================= */}
 
-      <Panel
-        position={[0, 1.62, -1.38]}
-        scale={[4.25, 2.65, 0.20]}
-        color={INNER}
-        bevel
+      {/* =====================================================
+          FRONT PROCESS DOOR / VIEWING AREA
+         ===================================================== */}
+
+      {/* Left front vertical housing */}
+
+      <SolidPanel
+        position={[-2.00, 1.78, 1.48]}
+        scale={[0.46, 2.48, 0.24]}
+        color={BODY_LIGHT}
       />
 
-      {/* Rear vertical ribs */}
+      {/* Right front vertical housing */}
 
-      {[-1.55, -0.75, 0, 0.75, 1.55].map((x) => (
-        <Panel
-          key={x}
-          position={[x, 1.70, -1.50]}
-          scale={[0.055, 2.35, 0.06]}
-          color="#3f4d5b"
-        />
-      ))}
-
-      {/* =========================
-          TOP HOUSING
-         ========================= */}
-
-      <Panel
-        position={[0, 2.92, 0]}
-        scale={[4.55, 0.28, 3.05]}
-        color="#303b47"
-        bevel
+      <SolidPanel
+        position={[2.00, 1.78, 1.48]}
+        scale={[0.46, 2.48, 0.24]}
+        color={BODY_LIGHT}
       />
 
-      <Panel
-        position={[0, 3.10, 0]}
-        scale={[4.18, 0.10, 2.72]}
-        color="#141b23"
+      {/* Lower front beam */}
+
+      <SolidPanel
+        position={[0, 0.91, 1.48]}
+        scale={[3.55, 0.40, 0.24]}
+        color={BODY_LIGHT}
       />
 
-      {/* Top front rail */}
+      {/* Upper front beam */}
 
-      <Panel
-        position={[0, 2.78, 1.42]}
-        scale={[4.15, 0.24, 0.18]}
-        color="#687787"
-        bevel
+      <SolidPanel
+        position={[0, 2.78, 1.48]}
+        scale={[3.55, 0.38, 0.24]}
+        color={BODY_LIGHT}
       />
 
-      {/* Top rear rail */}
+      {/* Dark process-door interior */}
 
-      <Panel
-        position={[0, 2.78, -1.42]}
-        scale={[4.15, 0.24, 0.18]}
-        color="#596877"
-        bevel
+      <DarkPanel
+        position={[0, 1.82, 1.34]}
+        scale={[3.55, 1.78, 0.08]}
       />
 
-      {/* =========================
-          INTERNAL STRUCTURAL POSTS
-         ========================= */}
-
-      {[-1.78, 1.78].map((x) => (
-        <group key={x}>
-          <Panel
-            position={[x, 1.65, 1.22]}
-            scale={[0.20, 2.20, 0.18]}
-            color="#536170"
-            bevel
-          />
-
-          <Panel
-            position={[x, 1.65, -1.18]}
-            scale={[0.16, 2.20, 0.16]}
-            color="#465462"
-          />
-        </group>
-      ))}
-
-      {/* =========================
-          INNER PROCESS BAY
-         ========================= */}
+      {/* Viewing window */}
 
       <mesh
-        position={[0, 1.55, 0]}
-        receiveShadow
+        position={[0, 1.78, 1.405]}
       >
-        <boxGeometry args={[3.65, 2.25, 2.30]} />
+        <boxGeometry args={[3.12, 1.52, 0.035]} />
         <meshStandardMaterial
-          color="#0a1118"
-          metalness={0.35}
-          roughness={0.52}
-        />
-      </mesh>
-
-      {/* Internal ceiling */}
-
-      <Panel
-        position={[0, 2.62, 0]}
-        scale={[3.65, 0.08, 2.30]}
-        color="#1c2732"
-      />
-
-      {/* Cyan technical edge around process bay */}
-
-      <mesh position={[0, 2.56, 1.17]}>
-        <boxGeometry args={[3.55, 0.025, 0.025]} />
-        <meshBasicMaterial
-          color={edgeColor}
+          color={GLASS}
+          metalness={0.25}
+          roughness={0.18}
           transparent
-          opacity={selected ? 0.9 : 0.28}
+          opacity={0.82}
+        />
+
+        <Edges
+          color="#607b88"
+          threshold={15}
         />
       </mesh>
 
-      {/* Side internal rails */}
+      {/* Window inner border */}
 
-      {[-1.55, 1.55].map((x) => (
-        <group key={x}>
-          <mesh position={[x, 1.55, 0]}>
-            <boxGeometry args={[0.055, 1.95, 2.05]} />
-            <meshStandardMaterial
-              color="#68798a"
-              metalness={0.9}
-              roughness={0.24}
-            />
-          </mesh>
-
-          {[0.72, 1.25, 1.78, 2.25].map((y) => (
-            <mesh
-              key={y}
-              position={[x, y, 0]}
-            >
-              <boxGeometry args={[0.10, 0.035, 1.85]} />
-              <meshStandardMaterial
-                color="#344250"
-                metalness={0.78}
-                roughness={0.30}
-              />
-            </mesh>
-          ))}
-        </group>
-      ))}
-
-      {/* =========================
-          FRONT INTERNAL DOOR FRAME
-         ========================= */}
-
-      <Panel
-        position={[-1.82, 1.62, 1.23]}
-        scale={[0.16, 2.15, 0.18]}
-        color="#667686"
-        bevel
+      <SolidPanel
+        position={[0, 2.56, 1.435]}
+        scale={[3.18, 0.055, 0.055]}
+        color="#60727f"
+        metalness={0.90}
+        roughness={0.24}
+        edges={false}
       />
 
-      <Panel
-        position={[1.82, 1.62, 1.23]}
-        scale={[0.16, 2.15, 0.18]}
-        color="#667686"
-        bevel
+      <SolidPanel
+        position={[0, 1.00, 1.435]}
+        scale={[3.18, 0.055, 0.055]}
+        color="#60727f"
+        metalness={0.90}
+        roughness={0.24}
+        edges={false}
       />
 
-      {/* Lower front corner blocks */}
-
-      <Panel
-        position={[-1.82, 0.72, 1.30]}
-        scale={[0.38, 0.42, 0.22]}
-        color="#202a35"
+      <SolidPanel
+        position={[-1.56, 1.78, 1.435]}
+        scale={[0.055, 1.58, 0.055]}
+        color="#60727f"
+        metalness={0.90}
+        roughness={0.24}
+        edges={false}
       />
 
-      <Panel
-        position={[1.82, 0.72, 1.30]}
-        scale={[0.38, 0.42, 0.22]}
-        color="#202a35"
+      <SolidPanel
+        position={[1.56, 1.78, 1.435]}
+        scale={[0.055, 1.58, 0.055]}
+        color="#60727f"
+        metalness={0.90}
+        roughness={0.24}
+        edges={false}
       />
+
+
+      {/* =====================================================
+          TOP EQUIPMENT HOUSING
+         ===================================================== */}
+
+      <SolidPanel
+        position={[0, 3.00, 0]}
+        scale={[4.85, 0.48, 3.28]}
+        color={BODY}
+      />
+
+      {/* Slightly raised top service cover */}
+
+      <SolidPanel
+        position={[0, 3.29, -0.02]}
+        scale={[4.45, 0.12, 2.88]}
+        color="#1b232c"
+        metalness={0.72}
+        roughness={0.32}
+      />
+
+      {/* Top front lip */}
+
+      <SolidPanel
+        position={[0, 2.77, 1.50]}
+        scale={[4.50, 0.16, 0.24]}
+        color={METAL_DARK}
+      />
+
+      {/* Top side covers */}
+
+      <SolidPanel
+        position={[-2.20, 3.00, 0]}
+        scale={[0.20, 0.44, 2.85]}
+        color="#596774"
+        metalness={0.90}
+        roughness={0.25}
+        edges={false}
+      />
+
+      <SolidPanel
+        position={[2.20, 3.00, 0]}
+        scale={[0.20, 0.44, 2.85]}
+        color="#596774"
+        metalness={0.90}
+        roughness={0.25}
+        edges={false}
+      />
+
+
+      {/* =====================================================
+          TOP SERVICE DETAILS
+         ===================================================== */}
+
+      <Vent
+        position={[-1.18, 3.365, -0.62]}
+      />
+
+      <Vent
+        position={[1.18, 3.365, -0.62]}
+      />
+
+      {/* Small service blocks */}
+
+      <SolidPanel
+        position={[-1.55, 3.39, 0.55]}
+        scale={[0.72, 0.08, 0.42]}
+        color="#252f39"
+      />
+
+      <SolidPanel
+        position={[1.55, 3.39, 0.55]}
+        scale={[0.72, 0.08, 0.42]}
+        color="#252f39"
+      />
+
+
+      {/* =====================================================
+          REAR ENCLOSURE
+         ===================================================== */}
+
+      <SolidPanel
+        position={[0, 1.72, -1.47]}
+        scale={[4.38, 2.55, 0.22]}
+        color={BODY_DARK}
+      />
+
+      {/* Rear access panel */}
+
+      <SolidPanel
+        position={[0, 1.72, -1.595]}
+        scale={[2.85, 1.82, 0.035]}
+        color="#1b242d"
+        metalness={0.58}
+        roughness={0.38}
+      />
+
+      {/* Rear panel divisions */}
+
+      <SolidPanel
+        position={[-1.42, 1.72, -1.625]}
+        scale={[0.035, 1.82, 0.025]}
+        color="#566572"
+        metalness={0.8}
+        roughness={0.28}
+        edges={false}
+      />
+
+      <SolidPanel
+        position={[1.42, 1.72, -1.625]}
+        scale={[0.035, 1.82, 0.025]}
+        color="#566572"
+        metalness={0.8}
+        roughness={0.28}
+        edges={false}
+      />
+
+
+      {/* =====================================================
+          SIDE VENTILATION / SERVICE DETAILS
+         ===================================================== */}
+
+      <Vent
+        position={[-2.54, 1.82, -0.58]}
+        rotation={[0, Math.PI / 2, 0]}
+        count={9}
+      />
+
+      <Vent
+        position={[2.54, 1.82, -0.58]}
+        rotation={[0, Math.PI / 2, 0]}
+        count={9}
+      />
+
+
+      {/* =====================================================
+          SMALL INDUSTRIAL STATUS DETAILS
+         ===================================================== */}
+
+      <StatusLight
+        position={[-1.78, 2.82, 1.61]}
+      />
+
+      <StatusLight
+        position={[1.78, 2.82, 1.61]}
+      />
+
+      {/* Technical accent strips */}
+
+      <mesh
+        position={[0, 2.69, 1.615]}
+      >
+        <boxGeometry args={[3.18, 0.018, 0.018]} />
+        <meshBasicMaterial
+          color={accent}
+          transparent
+          opacity={selected ? 0.90 : 0.30}
+        />
+      </mesh>
+
+      <mesh
+        position={[0, 0.92, 1.615]}
+      >
+        <boxGeometry args={[3.18, 0.018, 0.018]} />
+        <meshBasicMaterial
+          color={accent}
+          transparent
+          opacity={selected ? 0.80 : 0.20}
+        />
+      </mesh>
+
+
+      {/* =====================================================
+          SMALL FRONT CONTROL PANEL
+         ===================================================== */}
+
+      <group position={[1.62, 1.05, 1.62]}>
+        <mesh>
+          <boxGeometry args={[0.48, 0.32, 0.045]} />
+          <meshStandardMaterial
+            color="#111820"
+            metalness={0.55}
+            roughness={0.35}
+          />
+        </mesh>
+
+        <mesh position={[0, 0.07, 0.028]}>
+          <boxGeometry args={[0.28, 0.035, 0.012]} />
+          <meshBasicMaterial
+            color="#58717d"
+          />
+        </mesh>
+
+        <mesh position={[-0.15, -0.075, 0.03]}>
+          <cylinderGeometry args={[0.022, 0.022, 0.012, 16]} />
+          <meshStandardMaterial
+            color="#6b7c88"
+            metalness={0.8}
+            roughness={0.25}
+          />
+        </mesh>
+
+        <mesh position={[0, -0.075, 0.03]}>
+          <cylinderGeometry args={[0.022, 0.022, 0.012, 16]} />
+          <meshStandardMaterial
+            color="#6b7c88"
+            metalness={0.8}
+            roughness={0.25}
+          />
+        </mesh>
+
+        <mesh position={[0.15, -0.075, 0.03]}>
+          <cylinderGeometry args={[0.022, 0.022, 0.012, 16]} />
+          <meshStandardMaterial
+            color="#6b7c88"
+            metalness={0.8}
+            roughness={0.25}
+          />
+        </mesh>
+      </group>
+
     </group>
   )
 }
