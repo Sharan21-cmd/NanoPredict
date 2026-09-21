@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NanoPredict — Lithography Equipment Digital Twin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#e6ebef; --panel:rgba(249,251,252,.9); --panel-line:#c6cfd7;
+  --ink:#16202a; --ink-2:#4f5c68; --ink-3:#77838e;
+  --accent:#0c7c86; --accent-ink:#ffffff; --accent-soft:#d7edef; --chip:#edf1f4;
+  --ok:#1c9a70; --warn:#c98a00; --crit:#d2402c;
+  --shadow:0 6px 22px rgba(28,40,52,.13);
+  --tag-bg:rgba(255,255,255,.94); --tag-ink:#17222c; --leader:#1d2a36;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#1a2026; --panel:rgba(24,30,37,.9); --panel-line:#36414b;
+    --ink:#e7eef4; --ink-2:#aab6c1; --ink-3:#83909c;
+    --accent:#3fbcc6; --accent-ink:#06282b; --accent-soft:#1b3a3e; --chip:#232b33;
+    --ok:#39c49a; --warn:#e5ad2a; --crit:#f0664f; --shadow:0 6px 22px rgba(0,0,0,.35);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#1a2026; --panel:rgba(24,30,37,.9); --panel-line:#36414b;
+  --ink:#e7eef4; --ink-2:#aab6c1; --ink-3:#83909c;
+  --accent:#3fbcc6; --accent-ink:#06282b; --accent-soft:#1b3a3e; --chip:#232b33;
+  --ok:#39c49a; --warn:#e5ad2a; --crit:#f0664f; --shadow:0 6px 22px rgba(0,0,0,.35);
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:500 13px/1.35 'Barlow Semi Condensed','Arial Narrow','Segoe UI',system-ui,sans-serif;overflow:hidden;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+#app{position:relative;width:100%;height:100%;overflow:hidden}
+#stage{position:absolute;inset:0}
+#stage canvas{display:block;width:100%;height:100%;outline:none}
+#vignette{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 46%,transparent 58%,rgba(70,90,110,.14) 100%)}
+#leaders{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+#leaders polyline{fill:none;stroke:var(--leader);stroke-width:1;stroke-opacity:.5;transition:opacity .2s}
+#leaders circle{fill:#fff;stroke:var(--leader);stroke-width:1.2;transition:opacity .2s}
+#labels{position:absolute;inset:0;pointer-events:none}
+.tag{position:absolute;left:0;top:0;pointer-events:auto;cursor:pointer;white-space:nowrap;border:1px solid rgba(23,34,44,.22);border-left:3px solid var(--ink-2);background:var(--tag-bg);color:var(--tag-ink);
+  padding:3px 8px 3px 7px;border-radius:3px;font:600 11px/1.2 'Barlow Semi Condensed','Arial Narrow',sans-serif;letter-spacing:.05em;transition:opacity .2s;will-change:transform}
+.tag.sensor{border-left-color:#0c7c86}
+.tag.system{border-left-color:#3b4652}
+.tag.on{background:#0c7c86;color:#fff;border-color:#0c7c86;border-left-color:#fff}
+.tag.off{opacity:0;pointer-events:none}
+.panel{position:absolute;background:var(--panel);border:1px solid var(--panel-line);border-radius:6px;box-shadow:var(--shadow);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+#titleBlock{position:absolute;left:18px;top:14px;right:330px;pointer-events:none}
+#titleBlock h1{margin:0;font-weight:600;font-size:19px;letter-spacing:.005em;color:var(--ink)}
+#titleBlock p{margin:2px 0 0;font-size:13.5px;color:var(--ink-2)}
+#panelLeft{left:16px;top:84px;width:238px;padding:12px 12px 10px;max-height:calc(100% - 170px);overflow:auto}
+.group+.group{margin-top:12px;padding-top:11px;border-top:1px solid var(--panel-line)}
+.group h2{margin:0 0 6px;font-size:12px;font-weight:600;color:var(--ink-3)}
+.seg{display:flex;border:1px solid var(--panel-line);border-radius:5px;overflow:hidden;background:var(--chip)}
+.seg button{flex:1;padding:6px 3px;background:transparent;border:0;color:var(--ink-2);cursor:pointer;font-weight:500}
+.seg button+button{border-left:1px solid var(--panel-line)}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);font-weight:600}
+button:focus-visible,input:focus-visible,.tag:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:4px 0;cursor:pointer;color:var(--ink)}
+.row input{appearance:none;-webkit-appearance:none;width:30px;height:17px;border-radius:9px;background:var(--panel-line);position:relative;cursor:pointer;flex:none;transition:background .15s;margin:0}
+.row input::after{content:"";position:absolute;left:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#fff;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.row input:checked{background:var(--accent)}
+.row input:checked::after{transform:translateX(13px)}
+.slider{margin-top:9px}
+.slider label{display:flex;justify-content:space-between;color:var(--ink-2);margin-bottom:3px}
+.slider output{font-family:'IBM Plex Mono',ui-monospace,Menlo,monospace;color:var(--ink);font-size:12px}
+input[type=range]{width:100%;margin:0;accent-color:var(--accent)}
+#camBar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;padding:4px;gap:2px;max-width:calc(100% - 24px);overflow-x:auto}
+#camBar button{background:transparent;border:0;border-radius:4px;padding:6px 11px;color:var(--ink-2);cursor:pointer;font-weight:500;white-space:nowrap}
+#camBar button:hover{background:var(--chip);color:var(--ink)}
+#camBar button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+#rightCol{position:absolute;right:16px;top:14px;width:290px;max-height:calc(100% - 28px);overflow:auto;display:flex;flex-direction:column;gap:10px;pointer-events:none}
+#rightCol .panel{position:relative;pointer-events:auto;padding:12px}
+#rightCol h2{margin:0 0 8px;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.readouts{display:grid;grid-template-columns:1fr auto;gap:3px 12px;margin:0}
+.readouts dt{color:var(--ink-2)}
+.readouts dd{margin:0;text-align:right;font:500 13px 'IBM Plex Mono',ui-monospace,Menlo,monospace;color:var(--ink);font-variant-numeric:tabular-nums}
+#riskPill{font-weight:600;font-size:12px;padding:2px 9px;border-radius:10px;background:var(--ok);color:#fff}
+#riskPill[data-r="WARNING"]{background:var(--warn)}
+#riskPill[data-r="CRITICAL"]{background:var(--crit)}
+#riskMsg{margin:8px 0 8px;color:var(--ink-2);min-height:34px}
+.risk-sim{margin-top:2px}
+.risk-sim .seg button[data-risk="NORMAL"][aria-pressed="true"]{background:var(--ok);color:#fff}
+.risk-sim .seg button[data-risk="WARNING"][aria-pressed="true"]{background:var(--warn);color:#fff}
+.risk-sim .seg button[data-risk="CRITICAL"][aria-pressed="true"]{background:var(--crit);color:#fff}
+#flow{list-style:none;margin:10px 0 0;padding:0;border-top:1px solid var(--panel-line);padding-top:9px;display:grid;grid-template-columns:1fr 1fr;gap:4px 8px}
+#flow li{position:relative;padding-left:14px;color:var(--ink-3);font-size:12px;transition:color .25s}
+#flow li::before{content:"";position:absolute;left:0;top:5px;width:7px;height:7px;border-radius:50%;background:var(--panel-line);transition:background .25s,transform .25s}
+#flow li.hot{color:var(--ink)}
+#flow li.hot::before{background:var(--accent);transform:scale(1.25)}
+#info{display:none}
+#info.show{display:block}
+#info h3{margin:0 24px 8px 0;font-size:15px;font-weight:600;letter-spacing:.01em}
+#info dl{margin:0}
+#info dt{font-size:12px;font-weight:600;color:var(--accent);margin-top:8px}
+#info dd{margin:1px 0 0;color:var(--ink)}
+#infoClose{position:absolute;right:8px;top:8px;width:26px;height:26px;border-radius:4px;border:0;background:transparent;color:var(--ink-2);font-size:18px;line-height:1;cursor:pointer}
+#infoClose:hover{background:var(--chip)}
+#hint{position:absolute;left:18px;bottom:22px;color:var(--ink-2);font-size:12.5px;pointer-events:none;transition:opacity .6s;max-width:260px}
+#hint.gone{opacity:0}
+#menuBtn{display:none;position:absolute;left:16px;top:70px;padding:7px 12px;border-radius:5px;background:var(--panel);border:1px solid var(--panel-line);box-shadow:var(--shadow);cursor:pointer;font-weight:600}
+#fatal{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:30px;font-size:16px;color:var(--ink);background:var(--bg);z-index:50}
+#fatal[hidden]{display:none}
+.tag small{display:none;margin-left:8px;font-weight:500;letter-spacing:.02em;text-transform:none;opacity:.72}
+body.ex .tag small{display:inline}
+.tag.on small{opacity:.9}
+@media (max-width:900px){
+  #titleBlock{right:16px}
+  #titleBlock h1{font-size:16px}
+  #rightCol{top:auto;bottom:66px;right:10px;left:10px;width:auto;max-height:44%}
+  #rightCol .readouts{grid-template-columns:1fr auto 1fr auto;gap:2px 10px}
+  #flow{display:none}
+  #menuBtn{display:block;top:90px}
+  #panelLeft{display:none;top:128px;left:10px;width:min(280px,calc(100% - 20px));max-height:calc(100% - 300px);z-index:5}
+  #panelLeft.open{display:block}
+  #hint{display:none}
+  #camBar{bottom:12px}
+}
+@media (prefers-reduced-motion: reduce){ .tag,#leaders polyline,#leaders circle,#hint{transition:none} }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage" aria-label="Interactive 3D model of a lithography machine"></div>
+  <div id="vignette"></div>
+  <svg id="leaders" aria-hidden="true"></svg>
+  <div id="labels"></div>
+
+  <header id="titleBlock">
+    <h1>NanoPredict — Advanced Lithography Equipment Digital Twin</h1>
+    <p>Sub-Nanometer Drift &amp; Vacuum Anomaly Prediction</p>
+  </header>
+
+  <button id="menuBtn" type="button" aria-expanded="false">Controls</button>
+
+  <aside id="panelLeft" class="panel" aria-label="View controls">
+    <div class="group">
+      <h2>View</h2>
+      <div class="seg" id="segView">
+        <button type="button" data-view="normal" aria-pressed="true">Normal</button>
+        <button type="button" data-view="transparent" aria-pressed="false">Transparent</button>
+        <button type="button" data-view="exploded" aria-pressed="false">Exploded</button>
+      </div>
+      <label class="row" style="margin-top:6px"><span>Cutaway (front section removed)</span><input type="checkbox" id="tCut"></label>
+    </div>
+    <div class="group">
+      <h2>Enclosure</h2>
+      <div class="seg" id="segMat">
+        <button type="button" data-mat="opaque" aria-pressed="false">Opaque</button>
+        <button type="button" data-mat="semi" aria-pressed="true">Semi</button>
+        <button type="button" data-mat="xray" aria-pressed="false">X-ray</button>
+      </div>
+      <div class="slider">
+        <label for="transp"><span>Transparency</span><output id="transpOut">72%</output></label>
+        <input type="range" id="transp" min="20" max="100" step="1" value="72">
+      </div>
+    </div>
+    <div class="group">
+      <h2>Show</h2>
+      <label class="row"><span>Component labels</span><input type="checkbox" id="tLabels" checked></label>
+      <label class="row"><span>Sensors</span><input type="checkbox" id="tSensors" checked></label>
+      <label class="row"><span>Data flow</span><input type="checkbox" id="tFlow" checked></label>
+      <label class="row"><span>Floor grid</span><input type="checkbox" id="tGrid" checked></label>
+      <label class="row"><span>Animation</span><input type="checkbox" id="tPlay" checked></label>
+      <label class="row"><span>Auto-rotate</span><input type="checkbox" id="tRotate"></label>
+    </div>
+  </aside>
+
+  <div id="rightCol">
+    <!-- NanoPredict telemetry monitor removed.
+         The existing NanoPredict React telemetry UI will provide these values. -->
+    <section class="panel" id="info" aria-live="polite">
+      <button id="infoClose" type="button" aria-label="Close details">×</button>
+      <h3 id="infoTitle"></h3>
+      <dl>
+        <dt>Purpose</dt><dd id="infoPurpose"></dd>
+        <dt id="infoKLabel">Measured parameter</dt><dd id="infoParam"></dd>
+        <dt>NanoPredict role</dt><dd id="infoRole"></dd>
+      </dl>
+    </section>
+  </div>
+
+  <nav id="camBar" class="panel" aria-label="Camera presets">
+    <button type="button" data-cam="iso" aria-pressed="true">Isometric</button>
+    <button type="button" data-cam="front" aria-pressed="false">Front</button>
+    <button type="button" data-cam="back" aria-pressed="false">Back</button>
+    <button type="button" data-cam="left" aria-pressed="false">Left</button>
+    <button type="button" data-cam="right" aria-pressed="false">Right</button>
+    <button type="button" data-cam="top" aria-pressed="false">Top</button>
+    <button type="button" data-cam="bottom" aria-pressed="false">Bottom</button>
+  </nav>
+
+  <div id="hint">Drag to rotate, scroll to zoom, right-drag to pan. Click any part for details.</div>
+  <div id="fatal" hidden></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+'use strict';
+var $=function(s){return document.querySelector(s)}, $$=function(s){return Array.prototype.slice.call(document.querySelectorAll(s))};
+function fatal(m){var f=$('#fatal');f.hidden=false;f.textContent=m}
+if(!window.THREE||!THREE.OrbitControls){fatal('The 3D engine could not be loaded. Check your connection and reload the page.');return}
+try{boot()}catch(e){console.error(e);fatal('The viewer could not start: '+e.message)}
+
+function boot(){
+const T=THREE, V3=T.Vector3;
+const stage=$('#stage');
+const darkMQ=window.matchMedia('(prefers-color-scheme: dark)');
+
+/* ---------- renderer / scene / camera ---------- */
+const renderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.outputEncoding=T.sRGBEncoding;
+renderer.toneMapping=T.ACESFilmicToneMapping;
+renderer.toneMappingExposure=1.05;
+renderer.shadowMap.enabled=true;
+renderer.shadowMap.type=T.PCFSoftShadowMap;
+renderer.setClearColor(0x000000,0);
+stage.appendChild(renderer.domElement);
+const scene=new T.Scene();
+const camera=new T.PerspectiveCamera(30,1,.5,300);
+const controls=new T.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;controls.dampingFactor=.09;controls.rotateSpeed=.7;controls.zoomSpeed=.9;controls.panSpeed=.8;
+controls.minDistance=5;controls.maxDistance=110;controls.minPolarAngle=0;controls.maxPolarAngle=Math.PI;
+controls.mouseButtons={LEFT:T.MOUSE.ROTATE,MIDDLE:T.MOUSE.DOLLY,RIGHT:T.MOUSE.PAN};
+controls.touches={ONE:T.TOUCH.ROTATE,TWO:T.TOUCH.DOLLY_PAN};
+controls.autoRotateSpeed=1.1;
+
+/* ---------- studio environment (procedural softboxes, reflected by metal and glass) ---------- */
+function makeEnv(){
+  const s=new T.Scene();
+  s.add(new T.Mesh(new T.SphereGeometry(45,32,16),new T.MeshBasicMaterial({color:0xc9d3dc,side:T.BackSide})));
+  const ground=new T.Mesh(new T.CircleGeometry(44,32),new T.MeshBasicMaterial({color:0x6f7b86}));
+  ground.rotation.x=-Math.PI/2;ground.position.y=-14;s.add(ground);
+  const soft=(w,h,x,y,z,k,col)=>{
+    const m=new T.MeshBasicMaterial({color:col||0xffffff,side:T.DoubleSide});m.color.multiplyScalar(k);
+    const p=new T.Mesh(new T.PlaneGeometry(w,h),m);p.position.set(x,y,z);p.lookAt(0,0,0);s.add(p);
+  };
+  soft(34,14,0,32,10,3.2);
+  soft(14,24,-32,12,12,2.4);
+  soft(14,24,32,10,-6,1.8,0xdff0ff);
+  soft(30,9,0,7,-34,1.5);
+  const pm=new T.PMREMGenerator(renderer);
+  const tex=pm.fromScene(s,.03).texture;
+  pm.dispose();
+  return tex;
+}
+scene.environment=makeEnv();
+
+/* ---------- lighting ---------- */
+scene.add(new T.HemisphereLight(0xffffff,0x9aa5b0,.5));
+const key=new T.DirectionalLight(0xffffff,1.0);
+key.position.set(9,17,11);key.castShadow=true;
+key.shadow.mapSize.set(2048,2048);
+Object.assign(key.shadow.camera,{left:-17,right:17,top:17,bottom:-17,near:1,far:60});
+key.shadow.bias=-.0004;key.shadow.normalBias=.03;key.shadow.radius=3;
+scene.add(key);
+const fill=new T.DirectionalLight(0xdfeaff,.35);fill.position.set(-10,7,5);scene.add(fill);
+const rim=new T.DirectionalLight(0xcfe4ff,.6);rim.position.set(-4,9,-12);scene.add(rim);
+const in1=new T.PointLight(0xfff3e0,.75,15,1.5);in1.position.set(0,5.6,2.4);scene.add(in1);
+const in2=new T.PointLight(0xfff3e0,.6,12,1.5);in2.position.set(0,2.9,2.4);scene.add(in2);
+
+/* ---------- floor ---------- */
+const floor=new T.Group();scene.add(floor);
+const shadowPlane=new T.Mesh(new T.PlaneGeometry(70,70),new T.ShadowMaterial({opacity:.2}));
+shadowPlane.rotation.x=-Math.PI/2;shadowPlane.receiveShadow=true;floor.add(shadowPlane);
+const grid=new T.GridHelper(44,44,0x8592a0,0xb4bec8);
+grid.material.transparent=true;grid.material.opacity=.55;grid.material.depthWrite=false;grid.position.set(1.7,.004,0);floor.add(grid);
+function themeFloor(){const d=darkMQ.matches&&document.documentElement.dataset.theme!=='light';
+  grid.material.opacity=d?.28:.55;shadowPlane.material.opacity=d?.4:.2;}
+themeFloor();
+if(darkMQ.addEventListener)darkMQ.addEventListener('change',themeFloor);
+
+/* ---------- textures ---------- */
+const maxAniso=renderer.capabilities.getMaxAnisotropy();
+function canvasTex(w,h,draw,srgb){const c=document.createElement('canvas');c.width=w;c.height=h;draw(c.getContext('2d'),w,h);
+  const t=new T.CanvasTexture(c);if(srgb!==false)t.encoding=T.sRGBEncoding;t.anisotropy=maxAniso;return t;}
+const waferTex=canvasTex(1024,1024,(x,w,h)=>{
+  const g=x.createRadialGradient(512,512,30,512,512,520);g.addColorStop(0,'#63739a');g.addColorStop(.6,'#42506f');g.addColorStop(1,'#2b3550');
+  x.fillStyle=g;x.fillRect(0,0,w,h);
+  const dw=64,dh=80;
+  for(let py=0;py<h;py+=dh)for(let px=0;px<w;px+=dw){x.fillStyle=((px/dw+py/dh)&1)?'rgba(255,255,255,.05)':'rgba(0,0,0,.06)';x.fillRect(px+2,py+2,dw-4,dh-4);}
+  const ir=x.createLinearGradient(0,0,w,h);
+  ir.addColorStop(0,'rgba(120,170,255,.20)');ir.addColorStop(.33,'rgba(190,120,255,.15)');ir.addColorStop(.66,'rgba(255,180,120,.13)');ir.addColorStop(1,'rgba(120,220,200,.18)');
+  x.fillStyle=ir;x.fillRect(0,0,w,h);
+  x.strokeStyle='rgba(200,214,232,.28)';x.lineWidth=1.5;
+  for(let px=0;px<=w;px+=dw){x.beginPath();x.moveTo(px,0);x.lineTo(px,h);x.stroke();}
+  for(let py=0;py<=h;py+=dh){x.beginPath();x.moveTo(0,py);x.lineTo(w,py);x.stroke();}
+});
+const dotTex=canvasTex(64,64,(x)=>{x.clearRect(0,0,64,64);x.fillStyle='rgba(8,10,12,.75)';[[16,16],[48,16],[16,48],[48,48]].forEach(p=>{x.beginPath();x.arc(p[0],p[1],3.2,0,7);x.fill();});});
+dotTex.wrapS=dotTex.wrapT=T.RepeatWrapping;dotTex.repeat.set(16,11);
+const threadTex=canvasTex(8,16,(x)=>{x.fillStyle='#8d959d';x.fillRect(0,0,8,16);x.fillStyle='#d9dfe4';x.fillRect(0,0,8,8);},true);
+threadTex.wrapS=threadTex.wrapT=T.RepeatWrapping;threadTex.repeat.set(1,90);
+const reticleTex=canvasTex(512,512,(x)=>{
+  x.clearRect(0,0,512,512);x.fillStyle='#232a33';x.strokeStyle='#232a33';x.lineWidth=6;x.strokeRect(14,14,484,484);
+  for(let i=0;i<4;i++)for(let j=0;j<4;j++){const px=44+i*110,py=44+j*110;x.fillRect(px,py,86,86);x.clearRect(px+10,py+10,66,66);
+    for(let k=0;k<5;k++)x.fillRect(px+16,py+16+k*12,54-((i+j+k)%3)*10,5);}
+});
+
+/* ---------- materials ---------- */
+const std=o=>new T.MeshStandardMaterial(o);
+const M={
+  frame:std({color:0x2b3037,metalness:.8,roughness:.42}),
+  dark:std({color:0x424952,metalness:.75,roughness:.5}),
+  silver:std({color:0xc3cad1,metalness:.95,roughness:.3}),
+  steel:std({color:0x9aa3ac,metalness:.9,roughness:.38}),
+  chrome:std({color:0xeaf0f5,metalness:1,roughness:.06}),
+  black:std({color:0x15181c,metalness:.3,roughness:.6}),
+  granite:std({color:0x3b4249,metalness:.35,roughness:.55}),
+  ceramic:std({color:0x252a30,metalness:.4,roughness:.42}),
+  paint:std({color:0xdfe5ea,metalness:.15,roughness:.55}),
+  teal:std({color:0x0c7c86,metalness:.5,roughness:.4}),
+  sensor:std({color:0x2b3a47,metalness:.55,roughness:.45}),
+  pcb:std({color:0x1c5a48,metalness:.3,roughness:.55}),
+  gold:std({color:0xc8a24a,metalness:.9,roughness:.35}),
+  terminal:std({color:0x2f7a58,metalness:.2,roughness:.6}),
+  screw:std({map:threadTex,color:0xffffff,metalness:.9,roughness:.35}),
+  dots:new T.MeshBasicMaterial({map:dotTex,transparent:true,depthWrite:false}),
+  pattern:std({map:reticleTex,transparent:true,metalness:.6,roughness:.35,depthWrite:false}),
+  wafer:[std({color:0xb9c1c9,metalness:.9,roughness:.3}),std({map:waferTex,color:0xffffff,metalness:.85,roughness:.2}),std({color:0x8b939b,metalness:.9,roughness:.4})],
+  glass:new T.MeshPhysicalMaterial({color:0xd6ebf3,metalness:0,roughness:.06,clearcoat:1,clearcoatRoughness:.05,transparent:true,opacity:.29,depthWrite:false,envMapIntensity:1.3,side:T.DoubleSide}),
+  glassWin:new T.MeshPhysicalMaterial({color:0xcfe6ef,metalness:0,roughness:.05,clearcoat:1,transparent:true,opacity:.16,depthWrite:false,envMapIntensity:1.2,side:T.DoubleSide}),
+  glassCh:new T.MeshPhysicalMaterial({color:0xd9eef5,metalness:0,roughness:.05,clearcoat:1,transparent:true,opacity:.17,depthWrite:false,envMapIntensity:1.3,side:T.DoubleSide}),
+  glassOpt:new T.MeshPhysicalMaterial({color:0xd9eef5,metalness:0,roughness:.05,transparent:true,opacity:.12,depthWrite:false,envMapIntensity:1.2,side:T.DoubleSide}),
+  glassLens:new T.MeshPhysicalMaterial({color:0xbfe0ee,metalness:0,roughness:.03,clearcoat:1,transparent:true,opacity:.55,depthWrite:false,envMapIntensity:1.7,side:T.DoubleSide}),
+  glassRet:new T.MeshPhysicalMaterial({color:0xe2f1f6,metalness:0,roughness:.04,transparent:true,opacity:.45,depthWrite:false,envMapIntensity:1.3}),
+  glassCab:new T.MeshPhysicalMaterial({color:0xd6ebf3,metalness:0,roughness:.06,clearcoat:1,transparent:true,opacity:.2,depthWrite:false,envMapIntensity:1.2,side:T.DoubleSide}),
+  edge:new T.LineBasicMaterial({color:0x5f7b8c,transparent:true,opacity:.32})
+};
+const cableMats={};
+['laser','vib','press','temp'].forEach(k=>{cableMats[k]=std({color:0x1c2731,metalness:.15,roughness:.65,emissive:0x0c7c86,emissiveIntensity:.05});});
+
+/* ---------- geometry helpers ---------- */
+function mk(geo,mat,x,y,z,parent,o){const m=new T.Mesh(geo,mat);m.position.set(x||0,y||0,z||0);
+  if(!(o&&o.noShadow)){m.castShadow=true;m.receiveShadow=true;}
+  if(parent)parent.add(m);return m;}
+const box=(w,h,d,mat,x,y,z,p,o)=>mk(new T.BoxGeometry(w,h,d),mat,x,y,z,p,o);
+function cyl(rt,rb,h,mat,x,y,z,p,axis,seg,o){const m=mk(new T.CylinderGeometry(rt,rb,h,seg||32),mat,x,y,z,p,o);
+  if(axis==='x')m.rotation.z=Math.PI/2;else if(axis==='z')m.rotation.x=Math.PI/2;return m;}
+const sphere=(r,mat,x,y,z,p,o)=>mk(new T.SphereGeometry(r,16,12),mat,x,y,z,p,o);
+function ringGeo(rOut,rIn,h,seg){const s=new T.Shape();s.absarc(0,0,rOut,0,Math.PI*2,false);
+  const hl=new T.Path();hl.absarc(0,0,rIn,0,Math.PI*2,true);s.holes.push(hl);
+  const g=new T.ExtrudeGeometry(s,{depth:h,bevelEnabled:false,curveSegments:seg||48});g.rotateX(-Math.PI/2);g.translate(0,-h/2,0);return g;}
+const ring=(rOut,rIn,h,mat,x,y,z,p,seg)=>mk(ringGeo(rOut,rIn,h,seg),mat,x,y,z,p);
+function plateHole(w,d,h,hw,hd){const s=new T.Shape();s.moveTo(-w/2,-d/2);s.lineTo(w/2,-d/2);s.lineTo(w/2,d/2);s.lineTo(-w/2,d/2);s.closePath();
+  const hl=new T.Path();hl.moveTo(-hw/2,-hd/2);hl.lineTo(-hw/2,hd/2);hl.lineTo(hw/2,hd/2);hl.lineTo(hw/2,-hd/2);hl.closePath();s.holes.push(hl);
+  const g=new T.ExtrudeGeometry(s,{depth:h,bevelEnabled:false});g.rotateX(-Math.PI/2);g.translate(0,-h/2,0);return g;}
+function panelSolidGeo(w,h,wins,t){const s=new T.Shape();s.moveTo(-w/2,-h/2);s.lineTo(w/2,-h/2);s.lineTo(w/2,h/2);s.lineTo(-w/2,h/2);s.closePath();
+  wins.forEach(a=>{const cx=a[0],cy=a[1],ww=a[2],hh=a[3],p=new T.Path();p.moveTo(cx-ww/2,cy-hh/2);p.lineTo(cx-ww/2,cy+hh/2);p.lineTo(cx+ww/2,cy+hh/2);p.lineTo(cx+ww/2,cy-hh/2);p.closePath();s.holes.push(p);});
+  const g=new T.ExtrudeGeometry(s,{depth:t,bevelEnabled:false});g.translate(0,0,-t/2);return g;}
+const UP=new V3(0,1,0);
+function segMesh(a,b,r,mat,parent,seg){const d=new V3().subVectors(b,a),len=d.length();
+  const m=new T.Mesh(new T.CylinderGeometry(r,r,len,seg||12),mat);m.position.copy(a).add(b).multiplyScalar(.5);
+  m.quaternion.setFromUnitVectors(UP,d.normalize());m.castShadow=true;m.receiveShadow=true;if(parent)parent.add(m);return m;}
+function bolts(n,radius,y,mat,parent,size,h){const im=new T.InstancedMesh(new T.CylinderGeometry(size||.06,size||.06,h||.06,6),mat,n);
+  const d=new T.Object3D();for(let i=0;i<n;i++){const a=i/n*Math.PI*2;d.position.set(Math.cos(a)*radius,y,Math.sin(a)*radius);d.updateMatrix();im.setMatrixAt(i,d.matrix);}
+  im.castShadow=true;parent.add(im);return im;}
+function anchor(parent,x,y,z){const o=new T.Object3D();o.position.set(x,y,z);parent.add(o);return o;}
+
+/* ---------- part registry, explode system, component registry ---------- */
+const parts={},links=[],beamGroups=[],beamMats=[];
+function mkPart(key,ex){const g=new T.Group();g.name=key;g.userData.ex=new V3(ex[0],ex[1],ex[2]);scene.add(g);parts[key]=g;return g;}
+let exF=0;
+function applyExplode(f){exF=f;for(const k in parts)parts[k].position.copy(parts[k].userData.ex).multiplyScalar(f);
+  floor.position.y=-3.2*f;links.forEach(fn=>fn());}
+const comps={};
+function reg(id,roots,info){roots=[].concat(roots);comps[id]=Object.assign({id:id,roots:roots},info);
+  roots.forEach(r=>r.traverse(o=>{if(o.isMesh)o.userData.comp=id;}));}
+
+function vBeam(rt,rb,getTop,getBot,x,z,op){
+  const g=new T.Group(),o=op||.24;
+  const m1=new T.MeshBasicMaterial({color:0x4aa3ee,transparent:true,opacity:o,depthWrite:false,side:T.DoubleSide});
+  const m2=new T.MeshBasicMaterial({color:0x9fd2ff,transparent:true,opacity:o*1.9,depthWrite:false,side:T.DoubleSide});
+  const a=new T.Mesh(new T.CylinderGeometry(rt,rb,1,28,1,true),m1),b=new T.Mesh(new T.CylinderGeometry(rt*.38,rb*.38,1,20,1,true),m2);
+  a.renderOrder=b.renderOrder=6;g.add(a);g.add(b);scene.add(g);beamMats.push([m1,o],[m2,o*1.9]);
+  const upd=()=>{const t=getTop(),bt=getBot();g.scale.set(1,Math.max(.001,t-bt),1);g.position.set(x,(t+bt)/2,z);};
+  links.push(upd);upd();return g;}
+function staticBeam(rt,rb,len,mat1,mat2,x,y,z,parent,axis){
+  const a=new T.Mesh(new T.CylinderGeometry(rt,rb,len,28,1,true),mat1),b=new T.Mesh(new T.CylinderGeometry(rt*.38,rb*.38,len,20,1,true),mat2);
+  [a,b].forEach(m=>{m.renderOrder=6;m.position.set(x,y,z);if(axis==='x')m.rotation.z=Math.PI/2;parent.add(m);});}
+function beamMatPair(op){const m1=new T.MeshBasicMaterial({color:0x4aa3ee,transparent:true,opacity:op,depthWrite:false,side:T.DoubleSide}),
+  m2=new T.MeshBasicMaterial({color:0x9fd2ff,transparent:true,opacity:op*1.9,depthWrite:false,side:T.DoubleSide});beamMats.push([m1,op],[m2,op*1.9]);return[m1,m2];}
+
+/* ---------- component information ---------- */
+const INFO={
+ enclosure:{name:'Outer enclosure',purpose:'Shields the tool from airflow, particles and acoustic noise while allowing inspection of the internals.',param:'Enclosure air temperature and humidity.',role:'Provides the ambient reference that the environment channel compares against internal readings.'},
+ base:{name:'Base frame and isolation table',purpose:'Carries the whole tool on air isolators that decouple it from floor vibration.',param:'Floor-borne vibration reaching the table.',role:'Vibration sensor on the table gives the input-side reference for the drift model.'},
+ chamber:{name:'Vacuum chamber',purpose:'Holds the wafer stage in a low-pressure environment so the beam path stays stable.',param:'Chamber pressure in Pa and leak trend.',role:'Pressure readings feed the vacuum-anomaly prediction.'},
+ pump:{name:'Vacuum pump and lines',purpose:'Evacuates the chamber and holds the operating pressure through the pump line.',param:'Pump-down time and steady-state pressure.',role:'Slow pressure creep on this line is an early sign of a leak or pump wear.'},
+ wafer:{name:'Precision wafer stage',purpose:'Holds and positions the wafer under the projection lens with sub-nanometer resolution.',param:'Stage position error relative to target.',role:'Drift of this stage is the main quantity NanoPredict forecasts.'},
+ rail:{name:'Precision linear rail',purpose:'Guides the X axis of the stage on two hardened rails with a lead screw.',param:'Axis straightness and positional repeatability.',role:'Slow wear or thermal growth shows up as drift in the laser channel.'},
+ carriage:{name:'Motor and carriage (motion control system)',purpose:'Drives the carriage along the lead screw and closes the position loop.',param:'Carriage position and motor load.',role:'Motion-control data is correlated with sensor drift to separate command error from real drift.'},
+ optics:{name:'Projection optics',purpose:'Reduces and focuses the reticle pattern onto the wafer through a stack of lens elements.',param:'Optics temperature and mount vibration.',role:'Thermal and vibration changes here shift focus and overlay, so both are tracked.'},
+ reticle:{name:'Reticle stage',purpose:'Holds the mask and scans it in step with the wafer stage.',param:'Scan position and stage vibration.',role:'Tracks synchronization error between reticle and wafer motion.'},
+ source:{name:'Illumination source',purpose:'Produces the exposure beam and folds it down through the reticle into the optics.',param:'Beam path alignment.',role:'Provides context for drift events that follow illumination changes.'},
+ laser:{name:'Laser displacement sensor',purpose:'Measures precision stage displacement against a mirror on the stage.',param:'Sub-nanometer mechanical drift.',role:'Detects abnormal positional deviation and feeds the drift forecast.'},
+ vib:{name:'Vibration sensor',purpose:'Accelerometer module that measures vibration at the table, optics mount and reticle stage.',param:'Acceleration in g.',role:'Detects abnormal vibration signatures before they reach the wafer.'},
+ press:{name:'Vacuum pressure sensor',purpose:'Measures pressure inside the vacuum chamber through a probe line.',param:'Chamber pressure in Pa.',role:'Detects slow pressure creep and sudden vacuum anomalies.'},
+ temp:{name:'Temperature sensor',purpose:'Clamp-on probe that reads the temperature of the optics housing.',param:'Temperature in °C.',role:'Thermal drift is a leading cause of overlay error, so trends here raise the risk score.'},
+ env:{name:'Environment and humidity sensor',purpose:'Measures ambient temperature and relative humidity next to the tool.',param:'Ambient temperature and humidity.',role:'Separates environmental effects from real mechanical drift.'},
+ unit:{name:'NanoPredict monitoring unit',purpose:'Collects all sensor channels, runs the prediction engine and reports the risk level.',param:'Digitized sensor streams and model output.',role:'Central node of the system. Contains the controller, sensor interface, communication module and prediction engine.'},
+ display:{name:'NanoPredict monitor display',purpose:'Shows the live channel values, risk level and prediction horizon.',param:'Drift, vibration, pressure, temperature and risk.',role:'Operator view of the system. Values mirror the panel on the right.'},
+ engine:{name:'Prediction engine',purpose:'Processing module that turns sensor trends into a time-to-limit estimate.',param:'Predicted time until a limit is reached.',role:'Produces the prediction horizon and the risk classification.'},
+ beacon:{name:'Risk indicator beacon',purpose:'Stack light that mirrors the system risk level. Click it to step through Normal, Warning and Critical.',param:'System risk state.',role:'Local visual alarm for the operator.'}
+};
+
+/* =====================  MODEL: OuterEnclosure  ===================== */
+const panels=[];
+let waferMover,waferPlatform,carriageG,reticleCar,opticsCol,mirrorX,mirrorZ,chamberWallFull,chamberWallCut;
+const EX=4.6,EZ=3.2,EY0=.3,EY1=8.9;
+
+function makePanel(key,w,h,pos,rotY,rotX,wins,ex){
+  const part=mkPart(key,ex),g=new T.Group();g.position.set(pos[0],pos[1],pos[2]);g.rotation.y=rotY||0;g.rotation.x=rotX||0;part.add(g);
+  const gl=mk(new T.PlaneGeometry(w,h),M.glass,0,0,0,g,{noShadow:true});gl.renderOrder=10;
+  const edges=new T.LineSegments(new T.EdgesGeometry(new T.PlaneGeometry(w,h)),M.edge);g.add(edges);
+  const so=mk(panelSolidGeo(w,h,wins,.08),M.paint,0,0,0,g);so.castShadow=false;so.visible=false;
+  const wp=new T.Group();wp.visible=false;g.add(wp);
+  wins.forEach(a=>{const m=mk(new T.PlaneGeometry(a[2],a[3]),M.glassWin,a[0],a[1],0,wp,{noShadow:true});m.renderOrder=9;});
+  panels.push({gl:gl,edges:edges,so:so,wp:wp});return part;}
+
+function OuterEnclosure(){
+  const f=mkPart('frame',[0,0,0]);
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(s=>{
+    box(.2,EY1-EY0,.2,M.frame,s[0]*EX,(EY0+EY1)/2,s[1]*EZ,f);
+    box(.3,.3,.3,M.black,s[0]*EX,EY0+.15,s[1]*EZ,f);box(.3,.3,.3,M.black,s[0]*EX,EY1-.15,s[1]*EZ,f);});
+  [EY0+.1,EY1-.1].forEach(y=>{
+    box(2*EX,.16,.16,M.frame,0,y,-EZ,f);box(2*EX,.16,.16,M.frame,0,y,EZ,f);
+    box(.16,.16,2*EZ,M.frame,-EX,y,0,f);box(.16,.16,2*EZ,M.frame,EX,y,0,f);});
+  const bigWins=[[0,-2.4,6.8,2.4],[0,1.1,4.4,3.0]],sideWins=[[0,-2.4,4.8,2.4],[0,1.1,3.0,3.0]];
+  const pF=makePanel('pFront',2*EX,EY1-EY0,[0,(EY0+EY1)/2,EZ],0,0,bigWins,[0,0,5.0]);
+  const pB=makePanel('pBack',2*EX,EY1-EY0,[0,(EY0+EY1)/2,-EZ],Math.PI,0,bigWins,[0,0,-3.6]);
+  const pL=makePanel('pLeft',2*EZ,EY1-EY0,[-EX,(EY0+EY1)/2,0],-Math.PI/2,0,sideWins,[-2.6,0,0]);
+  const pR=makePanel('pRight',2*EZ,EY1-EY0,[EX,(EY0+EY1)/2,0],Math.PI/2,0,sideWins,[2.6,0,0]);
+  const pT=makePanel('pTop',2*EX,2*EZ,[0,EY1,0],0,-Math.PI/2,[[0,0,3.0,2.4]],[0,6.2,0]);
+  box(.14,1.0,.9,M.frame,EX,3.3,0,pR); // cable gland plate
+  reg('enclosure',[f,pF,pB,pL,pR,pT],INFO.enclosure);
+}
+
+/* =====================  MODEL: base frame, isolators, table  ===================== */
+function BaseFrame(){
+  const g=mkPart('base',[0,-3.2,0]);
+  box(13.8,.3,7.4,M.frame,1.7,.15,0,g);
+  [[-3.6,-2.4],[3.6,-2.4],[-3.6,2.4],[3.6,2.4]].forEach(p=>{
+    cyl(.34,.34,.7,M.dark,p[0],.65,p[1],g,'y',32);
+    [.45,.62,.79].forEach(y=>mk(new T.TorusGeometry(.34,.045,8,32),M.steel,p[0],y,p[1],g).rotation.x=Math.PI/2);
+    cyl(.4,.4,.06,M.silver,p[0],.33,p[1],g,'y',32);});
+  box(8.4,.3,5.8,M.granite,0,1.15,0,g);
+  const dots=new T.Mesh(new T.PlaneGeometry(8.2,5.6),M.dots);dots.rotation.x=-Math.PI/2;dots.position.y=1.302;dots.receiveShadow=true;g.add(dots);
+  [[-3.5,-2.5],[3.5,-2.5],[-3.5,2.5],[3.5,2.5]].forEach(p=>box(.3,3.65,.3,M.frame,p[0],3.125,p[1],g));
+  mk(plateHole(7.4,5.6,.2,1.9,1.9),M.dark,0,5.05,0,g);              // metrology plate
+  box(.4,2.05,.4,M.frame,-3.0,6.175,0,g);                            // illumination pedestal
+  reg('base',g,INFO.base);
+}
+
+/* =====================  MODEL: vacuum chamber + pump + lines  ===================== */
+function VacuumChamber(){
+  const g=mkPart('chamber',[0,0,3.6]);
+  cyl(2.5,2.5,.14,M.steel,0,1.37,0,g,'y',64);
+  ring(2.5,2.3,.12,M.steel,0,1.5,0,g,64);
+  ring(2.5,2.3,.12,M.steel,0,3.06,0,g,64);
+  chamberWallFull=mk(new T.CylinderGeometry(2.3,2.3,1.44,64,1,true),M.glassCh,0,2.28,0,g,{noShadow:true});chamberWallFull.renderOrder=5;
+  chamberWallCut=mk(new T.CylinderGeometry(2.3,2.3,1.44,64,1,true,1.1345,4.8869),M.glassCh,0,2.28,0,g,{noShadow:true});chamberWallCut.renderOrder=5;chamberWallCut.visible=false;
+  const lid=mk(new T.CircleGeometry(2.3,64),M.glassCh,0,3.08,0,g,{noShadow:true});lid.rotation.x=-Math.PI/2;lid.renderOrder=5;
+  ring(1.15,.95,.14,M.frame,0,3.19,0,g,48);
+  [1.565,3.0].forEach(y=>mk(new T.TorusGeometry(2.3,.04,8,64),M.black,0,y,0,g).rotation.x=Math.PI/2);
+  bolts(28,2.4,3.13,M.silver,g,.06,.06);bolts(28,2.4,1.57,M.silver,g,.06,.06);
+  // viewports where the two interferometer beams enter
+  const vpX=ring(.26,.16,.1,M.steel,2.3,2.42,.6,g,32);vpX.rotation.z=Math.PI/2;
+  const vpZ=ring(.26,.16,.1,M.steel,.4,2.42,-2.3,g,32);vpZ.rotation.x=Math.PI/2;
+  reg('chamber',g,INFO.chamber);
+
+  // ---- vacuum pump and lines (separate selectable component) ----
+  const pg=new T.Group();g.add(pg);
+  const pts=[[0,0],[.62,0],[.62,.08],[.5,.08],[.5,.3]];
+  for(let i=0;i<9;i++){const y0=.3+i*.1;pts.push([.56,y0],[.56,y0+.05],[.5,y0+.05],[.5,y0+.1]);}
+  pts.push([.5,1.2],[.66,1.2],[.66,1.3],[0,1.3]);
+  const pump=mk(new T.LatheGeometry(pts.map(p=>new T.Vector2(p[0],p[1])),40),M.silver,3.35,1.3,-1.7,pg);
+  cyl(.3,.3,.3,M.frame,3.35,2.75,-1.7,pg,'y',24);box(.5,.28,.4,M.dark,3.35,3.0,-1.7,pg);
+  const inlet=new V3(2.05,2.2,-1.04),pin=new V3(2.86,2.2,-1.46);
+  segMesh(inlet,pin,.15,M.steel,pg,20);
+  const dir=new V3().subVectors(pin,inlet).normalize();
+  for(let i=1;i<9;i++){const p=new V3().copy(inlet).addScaledVector(dir,i/9*inlet.distanceTo(pin));
+    const t=mk(new T.TorusGeometry(.16,.028,8,20),M.silver,p.x,p.y,p.z,pg);t.quaternion.setFromUnitVectors(new V3(0,0,1),dir);}
+  segMesh(new V3(3.35,1.6,-2.25),new V3(3.35,1.6,-3.0),.12,M.steel,pg,16);
+  const ex=ring(.2,.1,.08,M.steel,3.35,1.6,-3.05,pg,24);ex.rotation.x=Math.PI/2;
+  // purge / vent line with valve
+  segMesh(new V3(-1.478,2.2,-1.762),new V3(-2.06,2.2,-2.44),.1,M.steel,pg,14);
+  box(.4,.4,.4,M.frame,-2.3,2.2,-2.7,pg);mk(new T.TorusGeometry(.17,.028,8,20),M.teal,-2.3,2.55,-2.7,pg).rotation.x=Math.PI/2;
+  segMesh(new V3(-2.3,2.4,-2.7),new V3(-2.3,3.0,-2.7),.07,M.steel,pg,12);cyl(.1,.1,.06,M.dark,-2.3,3.02,-2.7,pg,'y',16);
+  reg('pump',pg,INFO.pump);
+}
+
+/* =====================  MODEL: wafer stage  ===================== */
+function WaferStage(){
+  const g=mkPart('wafer',[0,-.5,0]);
+  waferMover=new T.Group();g.add(waferMover);
+  [-.55,.55].forEach(x=>box(.14,.14,1.9,M.silver,x,2.17,0,waferMover));
+  waferPlatform=new T.Group();waferMover.add(waferPlatform);
+  box(2.5,.12,2.5,M.dark,0,2.34,0,waferPlatform);
+  [[-.55,-.7],[-.55,.7],[.55,-.7],[.55,.7]].forEach(p=>box(.3,.1,.3,M.frame,p[0],2.27,p[1],waferPlatform));
+  cyl(.95,.95,.14,M.ceramic,0,2.47,0,waferPlatform,'y',64);
+  mk(new T.TorusGeometry(.95,.02,8,64),M.silver,0,2.54,0,waferPlatform).rotation.x=Math.PI/2;
+  const wafer=mk(new T.CylinderGeometry(.8,.8,.03,64),M.wafer,0,2.555,0,waferPlatform);
+  mirrorX=box(.06,.22,2.0,M.chrome,1.28,2.42,0,waferPlatform);
+  mirrorZ=box(2.0,.22,.06,M.chrome,0,2.42,-1.28,waferPlatform);
+  // alignment fiducials and tick ring
+  [[-1.1,-1.1],[1.1,-1.1],[-1.1,1.1],[1.1,1.1]].forEach(p=>{box(.16,.01,.02,M.chrome,p[0],2.405,p[1],waferPlatform,{noShadow:true});box(.02,.01,.16,M.chrome,p[0],2.405,p[1],waferPlatform,{noShadow:true});});
+  const ticks=new T.InstancedMesh(new T.BoxGeometry(.015,.01,.07),M.chrome,72),d=new T.Object3D();
+  for(let i=0;i<72;i++){const a=i/72*Math.PI*2;d.position.set(Math.cos(a)*1.03,2.405,Math.sin(a)*1.03);d.rotation.y=-a;d.updateMatrix();ticks.setMatrixAt(i,d.matrix);}
+  waferPlatform.add(ticks);
+  reg('wafer',g,INFO.wafer);
+}
+
+/* =====================  MODEL: linear rail + motor carriage  ===================== */
+function LinearRail(){
+  const g=mkPart('rail',[0,-2.4,0]);
+  box(3.7,.1,1.8,M.dark,0,1.61,0,g);
+  [-.62,.62].forEach(z=>{box(3.2,.16,.14,M.silver,0,1.74,z,g);
+    for(let i=0;i<9;i++)cyl(.03,.03,.02,M.black,-1.4+i*.35,1.825,z,g,'y',8,{noShadow:true});});
+  cyl(.06,.06,3.3,M.screw,0,1.74,0,g,'x',20);
+  [-1.75,1.75].forEach(x=>box(.22,.42,1.7,M.frame,x,1.87,0,g));
+  reg('rail',g,INFO.rail);
+}
+function MotorCarriage(){
+  const g=mkPart('carriage',[0,-1.4,0]);
+  carriageG=new T.Group();g.add(carriageG);
+  [[-.5,-.62],[.5,-.62],[-.5,.62],[.5,.62]].forEach(p=>box(.4,.16,.22,M.frame,p[0],1.9,p[1],carriageG));
+  box(1.6,.12,1.7,M.steel,0,2.04,0,carriageG);
+  box(.3,.26,.3,M.gold,0,1.8,0,carriageG);
+  cyl(.28,.28,.34,M.dark,-2.05,1.74,0,g,'x',32);
+  cyl(.285,.285,.04,M.teal,-2.12,1.74,0,g,'x',32);
+  cyl(.08,.08,.15,M.gold,-1.88,1.74,0,g,'x',16);
+  reg('carriage',g,INFO.carriage);
+}
+
+/* =====================  MODEL: projection optics  ===================== */
+function lensGeo(R,e,c){const pts=[],n=10;
+  for(let i=0;i<=n;i++){const r=i/n*R;pts.push(new T.Vector2(r,-(e/2+c*(1-(r*r)/(R*R)))));}
+  for(let i=n;i>=0;i--){const r=i/n*R;pts.push(new T.Vector2(r,(e/2+c*(1-(r*r)/(R*R)))));}
+  return new T.LatheGeometry(pts,40);}
+function ProjectionOptics(){
+  const g=mkPart('optics',[0,1.9,0]);opticsCol=new T.Group();g.add(opticsCol);const col=opticsCol;
+  cyl(.9,1.05,.45,M.dark,0,3.325,0,col,'y',48);
+  const tube=mk(new T.CylinderGeometry(.86,.86,2.1,48,1,true),M.glassOpt,0,4.6,0,col,{noShadow:true});tube.renderOrder=4;
+  for(let i=0;i<4;i++){const a=i*Math.PI/2+Math.PI/4;cyl(.035,.035,2.1,M.steel,Math.cos(a)*.86,4.6,Math.sin(a)*.86,col,'y',8);}
+  [3.6,4.25,4.9,5.6].forEach(y=>ring(.92,.84,.07,M.steel,0,y,0,col,48));
+  cyl(.72,.9,.4,M.dark,0,5.85,0,col,'y',48);
+  ring(1.3,.84,.2,M.frame,0,5.25,0,col,64);bolts(12,1.12,5.36,M.silver,col,.05,.05);
+  [3.75,4.1,4.45,4.85,5.2,5.5].forEach((y,i)=>{const R=[.45,.55,.65,.7,.72,.72][i];
+    const l=mk(lensGeo(R,.05,.07+.01*i),M.glassLens,0,y,0,col,{noShadow:true});l.renderOrder=3;
+    ring(R+.12,R-.02,.05,M.steel,0,y,0,col,40);});
+  const bm=beamMatPair(.24);staticBeam(.48,.13,2.8,bm[0],bm[1],0,4.6,0,col);
+  reg('optics',g,INFO.optics);
+}
+
+/* =====================  MODEL: reticle stage  ===================== */
+function ReticleStage(){
+  const g=mkPart('reticle',[0,3.4,0]);
+  [[-1.5,-1.1],[1.5,-1.1],[-1.5,1.1],[1.5,1.1]].forEach(p=>box(.16,.95,.16,M.dark,p[0],5.625,p[1],g));
+  mk(plateHole(3.4,2.6,.16,1.3,1.3),M.dark,0,6.18,0,g);
+  [-.95,.95].forEach(z=>box(3.0,.14,.14,M.silver,0,6.33,z,g));
+  reticleCar=new T.Group();g.add(reticleCar);const car=reticleCar;
+  [[-.5,-.95],[.5,-.95],[-.5,.95],[.5,.95]].forEach(p=>box(.36,.12,.2,M.frame,p[0],6.46,p[1],car));
+  mk(plateHole(1.7,2.3,.08,1.1,1.1),M.steel,0,6.56,0,car);
+  const rg=box(1.3,.06,1.3,M.glassRet,0,6.63,0,car,{noShadow:true});rg.renderOrder=7;
+  const pat=mk(new T.PlaneGeometry(1.2,1.2),M.pattern,0,6.664,0,car,{noShadow:true});pat.rotation.x=-Math.PI/2;pat.renderOrder=8;
+  [[-.72,-.72],[.72,-.72],[-.72,.72],[.72,.72]].forEach(p=>box(.18,.07,.18,M.dark,p[0],6.66,p[1],car));
+  [-1.15,1.15].forEach(x=>{box(.3,.3,.3,M.sensor,x,6.41,-1.15,g);cyl(.09,.09,.06,M.black,x,6.41,-.98,g,'z',16);});
+  reg('reticle',g,INFO.reticle);
+}
+
+/* =====================  MODEL: illumination source + fold mirror  ===================== */
+function IlluminationSource(){
+  const g=mkPart('source',[0,4.4,0]);
+  box(1.3,.7,.7,M.frame,-3.75,7.55,0,g);
+  box(.6,.04,.5,M.teal,-3.75,7.92,0,g);
+  for(let i=0;i<8;i++)box(.05,.18,.6,M.steel,-4.25+i*.14,8.05,0,g);
+  cyl(.22,.22,.1,M.glassOpt,-3.08,7.55,0,g,'x',24);
+  const tube=cyl(.2,.2,2.75,M.glassOpt,-1.72,7.55,0,g,'x',24,{noShadow:true});tube.renderOrder=4;
+  [-3.0,-.4].forEach(x=>ring(.26,.18,.08,M.steel,x,7.55,0,g,24).rotation.z=Math.PI/2);
+  const bm=beamMatPair(.26);staticBeam(.09,.09,2.7,bm[0],bm[1],-1.72,7.55,0,g,'x');
+  const mir=box(.7,.05,.6,M.chrome,0,7.55,0,g);mir.rotation.z=-Math.PI/4;
+  box(.5,.14,.5,M.frame,0,7.98,0,g);box(.16,.5,.16,M.frame,0,8.35,0,g);
+  reg('source',g,INFO.source);
+  // vertical beam segments that stretch between the exploded parts
+  vBeam(.14,.5,()=>7.55+parts.source.position.y,()=>6.68+parts.reticle.position.y,0,0,.26);
+  vBeam(.5,.49,()=>6.52+parts.reticle.position.y,()=>6.05+parts.optics.position.y,0,0,.24);
+  vBeam(.13,.08,()=>3.1+parts.optics.position.y,()=>2.57+parts.wafer.position.y,0,0,.3);
+}
+
+/* =====================  MODEL: NanoPredict sensors  ===================== */
+const STATE_HEX={ok:0x27b980,warn:0xe0a020,crit:0xe0402c};
+const RCOL={NORMAL:'#1c9a70',WARNING:'#c98a00',CRITICAL:'#d2402c'};
+const GROUP_STATE={
+  NORMAL:{laser:'ok',vib:'ok',press:'ok',temp:'ok',env:'ok',unit:'ok'},
+  WARNING:{laser:'warn',vib:'warn',press:'ok',temp:'ok',env:'ok',unit:'warn'},
+  CRITICAL:{laser:'crit',vib:'crit',press:'crit',temp:'warn',env:'ok',unit:'crit'}};
+const leds=[];
+function led(parent,x,y,z,group){
+  const core=new T.Mesh(new T.SphereGeometry(.035,12,8),new T.MeshBasicMaterial({color:STATE_HEX.ok}));core.position.set(x,y,z);parent.add(core);
+  const halo=new T.Mesh(new T.SphereGeometry(.09,12,8),new T.MeshBasicMaterial({color:STATE_HEX.ok,transparent:true,opacity:.25,depthWrite:false}));halo.position.set(x,y,z);parent.add(halo);
+  leds.push({core:core,halo:halo,group:group});}
+
+const laserBeams=[];
+function LaserDisplacementSensor(key,ex,c,axis,mirror){
+  const g=mkPart(key,ex),s=new T.Group();s.position.set(c[0],c[1],c[2]);s.rotation.y=(axis==='x')?-Math.PI/2:0;g.add(s);
+  box(.34,.34,.6,M.sensor,0,0,0,s);box(.2,.03,.4,M.teal,0,.185,-.05,s);
+  box(.28,.95,.28,M.dark,0,-.65,0,s);box(.5,.06,.5,M.frame,0,-1.14,0,s);
+  cyl(.09,.09,.08,M.black,0,0,.32,s,'z',20);
+  ring(.125,.09,.04,M.silver,0,0,.35,s,24).rotation.x=Math.PI/2;
+  cyl(.05,.05,.12,M.dark,0,0,-.36,s,'z',12);
+  led(s,0,.21,.2,'laser');
+  const tip=anchor(s,0,0,.4);
+  const beam=new T.Mesh(new T.CylinderGeometry(.014,.014,1,6),new T.MeshBasicMaterial({color:0xff4a3a,transparent:true,opacity:.9,depthWrite:false}));
+  const glow=new T.Mesh(new T.CylinderGeometry(.05,.05,1,8),new T.MeshBasicMaterial({color:0xff5a4a,transparent:true,opacity:.16,depthWrite:false}));
+  beam.renderOrder=glow.renderOrder=7;scene.add(beam);scene.add(glow);
+  laserBeams.push({tip:tip,axis:axis,mirror:mirror,beam:beam,glow:glow});
+  return g;}
+
+function VibrationSensor(key,ex,p){
+  const g=mkPart(key,ex),s=new T.Group();s.position.set(p[0],p[1],p[2]);g.add(s);
+  box(.42,.05,.42,M.frame,0,-.115,0,s);box(.32,.18,.32,M.sensor,0,0,0,s);box(.34,.035,.34,M.teal,0,-.03,0,s);
+  cyl(.09,.09,.06,M.silver,0,.12,0,s,'y',20);
+  led(s,.11,.1,.13,'vib');
+  return g;}
+
+function PressureSensor(key,ex,W,theta){
+  const g=mkPart(key,ex),s=new T.Group();s.position.set(W[0],W[1],W[2]);s.rotation.y=theta;g.add(s);
+  ring(.22,.1,.06,M.steel,0,0,0,s,32).rotation.x=Math.PI/2;
+  cyl(.11,.11,.35,M.steel,0,0,.175,s,'z',20);
+  cyl(.2,.2,.62,M.sensor,0,0,.66,s,'z',28);
+  cyl(.205,.205,.06,M.teal,0,0,.42,s,'z',28);
+  cyl(.21,.21,.05,M.silver,0,0,.99,s,'z',28);
+  cyl(.06,.06,.16,M.black,0,.24,.75,s,'y',12);
+  led(s,.12,.17,.6,'press');
+  cyl(.035,.035,1.1,M.silver,0,0,-.55,s,'z',10);
+  cyl(.035,.035,.14,M.silver,0,-.07,-1.1,s,'y',10);
+  return g;}
+
+function TemperatureSensor(key,ex,c){
+  const g=mkPart(key,ex),s=new T.Group();s.position.set(c[0],c[1],c[2]);g.add(s);
+  mk(new T.TorusGeometry(.88,.03,8,48),M.steel,0,0,0,s).rotation.x=Math.PI/2;
+  box(.3,.22,.26,M.sensor,0,0,1.22,s);box(.32,.04,.28,M.teal,0,-.06,1.22,s);
+  cyl(.03,.03,.22,M.silver,0,0,.99,s,'z',10);sphere(.045,M.gold,0,0,.88,s);
+  led(s,.1,.13,1.22,'temp');
+  return g;}
+
+function EnvironmentSensor(key,ex,c){
+  const g=mkPart(key,ex),s=new T.Group();s.position.set(c[0],c[1],c[2]);g.add(s);
+  box(.5,.28,.4,M.sensor,0,0,0,s);box(.52,.04,.42,M.teal,0,-.08,0,s);
+  for(let i=0;i<3;i++)box(.34,.02,.02,M.black,0,-.02+i*.06,.205,s,{noShadow:true});
+  cyl(.03,.03,.34,M.silver,.15,.31,0,s,'y',10);cyl(.06,.06,.1,M.steel,.15,.5,0,s,'y',16);
+  led(s,-.17,.15,.1,'env');
+  return g;}
+
+/* =====================  MODEL: NanoPredict monitoring unit  ===================== */
+const CX=6.6,CZ=.3,CY0=.3,CY1=3.8,ZB=CZ-.95;
+const dispCanvas=document.createElement('canvas');dispCanvas.width=640;dispCanvas.height=380;
+const dctx=dispCanvas.getContext('2d');
+const dispTex=new T.CanvasTexture(dispCanvas);dispTex.encoding=T.sRGBEncoding;dispTex.anisotropy=maxAniso;
+const engMat=new T.MeshBasicMaterial({color:STATE_HEX.ok});
+const beaconMats=[0x1f7a58,0x9a6f14,0x9a2f22].map(c=>new T.MeshStandardMaterial({color:c,metalness:.1,roughness:.35,emissive:c,emissiveIntensity:0}));
+const portPos=[];
+function MonitoringUnit(){
+  const g=mkPart('unit',[3.4,0,0]);
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(s=>box(.12,CY1-CY0,.12,M.frame,CX+s[0]*1.0,(CY0+CY1)/2,CZ+s[1]*1.3,g));
+  box(2.1,.08,2.7,M.frame,CX,CY1-.04,CZ,g);box(2.1,.1,2.7,M.frame,CX,CY0+.05,CZ,g);
+  box(2.0,CY1-CY0-.2,.06,M.dark,CX,(CY0+CY1)/2,CZ-1.3,g);
+  box(.06,CY1-CY0-.2,2.6,M.dark,CX-1.0,(CY0+CY1)/2,CZ,g);
+  const rg=mk(new T.PlaneGeometry(2.6,CY1-CY0-.2),M.glassCab,CX+1.0,(CY0+CY1)/2,CZ,g,{noShadow:true});rg.rotation.y=Math.PI/2;rg.renderOrder=8;
+  box(2.0,1.4,.08,M.frame,CX,3.05,CZ+1.3,g);box(2.0,.2,.08,M.frame,CX,2.25,CZ+1.3,g);
+  const dg=mk(new T.PlaneGeometry(1.9,1.7),M.glassCab,CX,1.3,CZ+1.32,g,{noShadow:true});dg.renderOrder=8;
+  box(.05,1.7,.05,M.frame,CX-.95,1.3,CZ+1.33,g);box(.05,1.7,.05,M.frame,CX+.95,1.3,CZ+1.33,g);
+  box(1.9,.05,.05,M.frame,CX,.45,CZ+1.33,g);box(1.9,.05,.05,M.frame,CX,2.15,CZ+1.33,g);
+  // interior
+  box(1.8,1.7,.04,M.granite,CX,1.3,CZ-1.2,g);
+  box(1.5,.5,.05,M.pcb,CX,.75,ZB,g);
+  for(let i=0;i<7;i++){box(.13,.1,.12,M.terminal,CX-.6+i*.2,.98,ZB+.06,g);box(.13,.03,.02,M.gold,CX-.6+i*.2,.55,ZB+.03,g);}
+  box(.8,.55,.05,M.pcb,CX-.6,1.4,ZB,g);box(.32,.32,.05,M.black,CX-.6,1.4,ZB+.05,g);box(.24,.24,.02,M.silver,CX-.6,1.4,ZB+.09,g);
+  box(.14,.1,.04,M.black,CX-.85,1.62,ZB+.04,g);box(.14,.1,.04,M.black,CX-.85,1.18,ZB+.04,g);
+  box(1.3,.3,.05,M.pcb,CX-.1,1.93,ZB,g);box(.22,.18,.04,M.black,CX-.4,1.93,ZB+.04,g);
+  cyl(.02,.02,.3,M.black,CX+.45,2.06,ZB+.06,g,'y',8);
+  for(let i=0;i<7;i++){const py=.8+.2*i;portPos.push(new V3(CX-1.07,py,CZ));
+    cyl(.06,.06,.08,M.black,CX-1.04,py,CZ,g,'x',16);ring(.085,.055,.03,M.silver,CX-1.06,py,CZ,g,16).rotation.z=Math.PI/2;}
+  reg('unit',g,INFO.unit);
+  // prediction engine
+  const eg=new T.Group();g.add(eg);
+  box(.8,.55,.05,M.pcb,CX+.35,1.4,ZB,eg);box(.7,.06,.2,M.steel,CX+.35,1.4,ZB+.13,eg);
+  for(let i=0;i<9;i++)box(.03,.46,.16,M.silver,CX+.03+i*.08,1.4,ZB+.24,eg);
+  mk(new T.BoxGeometry(.5,.03,.02),engMat,CX+.35,1.08,ZB+.06,eg);
+  reg('engine',eg,INFO.engine);
+  // display
+  const dg2=new T.Group();g.add(dg2);
+  box(1.86,1.3,.03,M.black,CX,3.05,CZ+1.35,dg2);
+  const scr=new T.Mesh(new T.PlaneGeometry(1.7,1.0),new T.MeshBasicMaterial({map:dispTex,toneMapped:false}));scr.position.set(CX,3.05,CZ+1.372);dg2.add(scr);
+  reg('display',dg2,INFO.display);
+}
+function Beacon(){
+  const g=mkPart('beacon',[3.4,1.1,0]);
+  cyl(.14,.14,.08,M.frame,7.1,3.88,.9,g,'y',24);
+  beaconMats.forEach((m,i)=>cyl(.11,.11,.15,m,7.1,3.995+i*.15,.9,g,'y',24));
+  cyl(.09,.11,.04,M.frame,7.1,4.39,.9,g,'y',24);
+  reg('beacon',g,INFO.beacon);
+}
+
+/* =====================  build the machine  ===================== */
+OuterEnclosure();BaseFrame();VacuumChamber();WaferStage();LinearRail();MotorCarriage();ProjectionOptics();ReticleStage();IlluminationSource();
+LaserDisplacementSensor('sLaserX',[1.8,-.5,0],[3.35,2.42,.6],'x',mirrorX);
+LaserDisplacementSensor('sLaserY',[0,-.5,-1.8],[.4,2.42,-2.7],'z',mirrorZ);
+VibrationSensor('sVib1',[-1,-3.2,1],[-2.9,1.44,1.6]);
+VibrationSensor('sVib2',[0,2.5,1.2],[0,5.49,1.0]);
+VibrationSensor('sVib3',[0,3.9,1.2],[1.0,6.40,1.2]);
+const PTH=-50*Math.PI/180;
+PressureSensor('sPress',[-1.07,0,4.5],[-1.762,2.8,1.479],PTH);
+TemperatureSensor('sTemp',[0,2.1,1.6],[0,4.3,0]);
+EnvironmentSensor('sEnv',[3.4,1.1,0],[6.1,3.98,.3]);
+MonitoringUnit();Beacon();
+reg('laser',[parts.sLaserX,parts.sLaserY],INFO.laser);
+reg('vib',[parts.sVib1,parts.sVib2,parts.sVib3],INFO.vib);
+reg('press',parts.sPress,INFO.press);reg('temp',parts.sTemp,INFO.temp);reg('env',parts.sEnv,INFO.env);
+const SENSOR_PARTS=['sLaserX','sLaserY','sVib1','sVib2','sVib3','sPress','sTemp','sEnv'];
+
+/* laser beams follow the stage mirrors every frame */
+const _a=new V3(),_b=new V3(),_d=new V3();
+function updateLasers(){
+  laserBeams.forEach(L=>{
+    L.tip.getWorldPosition(_a);L.mirror.getWorldPosition(_b);
+    if(L.axis==='x')_b.set(_b.x+.03,_a.y,_a.z);else _b.set(_a.x,_a.y,_b.z-.03);
+    _d.subVectors(_b,_a);const len=Math.max(.001,_d.length());
+    [L.beam,L.glow].forEach(m=>{m.position.copy(_a).addScaledVector(_d,.5);m.quaternion.setFromUnitVectors(UP,_d.clone().normalize());m.scale.set(1,len,1);});});}
+links.push(updateLasers);
+
+/* =====================  DATA FLOW: cables, pulses  ===================== */
+const CABLES=[
+ {g:'vib',from:'sVib1',port:0,pts:[[-2.9,1.44,1.8],[-2.9,1.52,2.66],[2.0,1.52,2.72],[3.9,1.9,1.9],[4.25,2.5,.9]]},
+ {g:'laser',from:'sLaserX',port:1,pts:[[3.77,2.42,.6],[4.05,2.6,.45]]},
+ {g:'press',from:'sPress',port:2,pts:[[-2.57,2.8,2.15],[-2.6,2.25,2.7],[-2.5,1.8,2.82],[2.0,1.8,2.84],[3.95,2.2,1.7],[4.3,2.7,.6]]},
+ {g:'laser',from:'sLaserY',port:3,pts:[[.4,2.42,-3.12],[1.0,2.9,-3.05],[2.6,3.4,-2.95],[3.9,3.5,-1.4]]},
+ {g:'temp',from:'sTemp',port:4,pts:[[0,4.3,1.38],[1.6,4.2,1.7],[3.8,4.0,.9],[4.3,3.7,.4]]},
+ {g:'vib',from:'sVib2',port:5,pts:[[0,5.49,1.2],[1.7,5.55,1.5],[3.7,4.9,.9],[4.3,4.2,.4]]},
+ {g:'vib',from:'sVib3',port:6,pts:[[1,6.4,1.4],[2.4,6.2,1.6],[3.9,5.4,1.0],[4.35,4.4,.5]]}];
+const cableGroup=new T.Group();scene.add(cableGroup);
+CABLES.forEach((c,i)=>{const gy=3.0+.1*i,gz=-.3+.1*i,py=.8+.2*c.port;
+  c.pts=c.pts.map(p=>new V3(p[0],p[1],p[2]));
+  c.pts.push(new V3(4.6,gy,gz),new V3(4.95,gy-.35,gz*.5+.15),new V3(5.3,py+.35,.3),new V3(5.55,py,.3));
+  c.mesh=null;c.curve=null;});
+function rebuildCables(){
+  CABLES.forEach(c=>{
+    const n=c.pts.length,oa=parts[c.from].position,ob=parts.unit.position;
+    const pts=c.pts.map((p,k)=>{const w=k/(n-1);return new V3(p.x+oa.x+(ob.x-oa.x)*w,p.y+oa.y+(ob.y-oa.y)*w,p.z+oa.z+(ob.z-oa.z)*w);});
+    c.curve=new T.CatmullRomCurve3(pts,false,'catmullrom',.35);
+    if(c.mesh){cableGroup.remove(c.mesh);c.mesh.geometry.dispose();}
+    c.mesh=new T.Mesh(new T.TubeGeometry(c.curve,72,.028,6,false),cableMats[c.g]);c.mesh.castShadow=true;cableGroup.add(c.mesh);});}
+links.push(rebuildCables);rebuildCables();
+
+const PPC=3,NP=CABLES.length*PPC;
+const pulses=new T.InstancedMesh(new T.SphereGeometry(.06,10,8),new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.95,depthWrite:false}),NP);
+pulses.instanceMatrix.setUsage(T.DynamicDrawUsage);pulses.frustumCulled=false;pulses.renderOrder=9;scene.add(pulses);
+const _pm=new T.Object3D(),_pc=new T.Color();
+function setPulseColors(){CABLES.forEach((c,i)=>{const hex=(risk==='NORMAL')?0x14a3b0:STATE_HEX[GROUP_STATE[risk][c.g]];_pc.setHex(hex);
+  for(let k=0;k<PPC;k++)pulses.setColorAt(i*PPC+k,_pc);});if(pulses.instanceColor)pulses.instanceColor.needsUpdate=true;}
+
+/* =====================  risk simulation  ===================== */
+const RISKS={
+ NORMAL:{d:-.21,v:.018,p:.004,t:23.4,h:15,shake:.0012,msg:'All channels are inside their baseline.'},
+ WARNING:{d:-.87,v:.046,p:.011,t:23.9,h:8,shake:.006,msg:'Drift and vibration are trending above baseline. Inspection advised within the prediction horizon.'},
+ CRITICAL:{d:-2.45,v:.118,p:.047,t:24.8,h:2,shake:.016,msg:'Drift, vibration and pressure exceed limits. Intervention required now.'}};
+let risk='NORMAL';const cur={d:-.21,v:.018,p:.004,t:23.4,h:15};
+const hist=[];
+const flowLis=$$('#flow li');
+
+function drawDisplay(){
+  const c=dctx,col=RCOL[risk];
+  c.fillStyle='#0e1820';c.fillRect(0,0,640,380);c.fillStyle='#16303a';c.fillRect(0,0,640,52);
+  c.textBaseline='middle';c.textAlign='left';c.fillStyle='#e6f1f4';c.font='600 26px "Barlow Semi Condensed",Arial,sans-serif';c.fillText('NanoPredict monitor',20,27);
+  c.fillStyle=col;c.fillRect(468,10,152,32);c.fillStyle='#fff';c.textAlign='center';c.font='600 20px "Barlow Semi Condensed",Arial,sans-serif';c.fillText(risk,544,27);
+  const rows=[['Drift',fmt.d()],['Vibration',fmt.v()],['Pressure',fmt.p()],['Temperature',fmt.t()],['Horizon',fmt.h()]];
+  rows.forEach((r,i)=>{const y=92+i*50;c.textAlign='left';c.fillStyle='#8fa6b2';c.font='500 22px "Barlow Semi Condensed",Arial,sans-serif';c.fillText(r[0],24,y);
+    c.textAlign='right';c.fillStyle='#e6f1f4';c.font='500 26px "IBM Plex Mono",Consolas,monospace';c.fillText(r[1],392,y);
+    c.fillStyle='#22404a';c.fillRect(24,y+22,368,1);});
+  c.strokeStyle='#22404a';c.lineWidth=1;c.strokeRect(430,84,190,190);
+  c.fillStyle='#8fa6b2';c.textAlign='left';c.font='500 18px "Barlow Semi Condensed",Arial,sans-serif';c.fillText('Drift trend',436,300);
+  if(hist.length>1){c.strokeStyle=col;c.lineWidth=3;c.beginPath();
+    hist.forEach((v,i)=>{const x=436+i/(59)*178,y=180-Math.max(-3.2,Math.min(1,v))*36;i?c.lineTo(x,y):c.moveTo(x,y);});c.stroke();}
+  dispTex.needsUpdate=true;}
+const fmt={
+  d:()=>(cur.d.toFixed(2)+' nm').replace('-','\u2212'),v:()=>cur.v.toFixed(3)+' g',p:()=>cur.p.toFixed(3)+' Pa',t:()=>cur.t.toFixed(1)+' \u00b0C',h:()=>Math.round(cur.h)+' min'};
+
+function pressed(sel,attr,val){$$(sel+' button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset[attr]===val)));}
+/* =====================  NanoPredict telemetry bridge  ===================== */
+
+let liveTelemetry = false;
+
+window.addEventListener('message',(event)=>{
+  if(event.origin !== window.location.origin)return;
+
+  const data=event.data;
+
+  if(!data || data.type!=='NANOPREDICT_TELEMETRY')return;
+
+  liveTelemetry=true;
+
+  if(data.drift !== undefined)
+    cur.d=Number(data.drift);
+
+  if(data.vibration !== undefined)
+    cur.v=Number(data.vibration);
+
+  if(data.pressure !== undefined)
+    cur.p=Number(data.pressure);
+
+  if(data.temperature !== undefined)
+    cur.t=Number(data.temperature);
+
+  if(data.prediction?.horizon !== undefined)
+    cur.h=Number(data.prediction.horizon);
+
+  if(data.risk){
+    const incomingRisk=String(data.risk).toUpperCase();
+
+    if(RISKS[incomingRisk] && incomingRisk!==risk){
+      setRisk(incomingRisk);
+    }
+  }
+});
+function setRisk(r){
+  risk=r;const R=RISKS[r],st=GROUP_STATE[r];
+  const pill=$('#riskPill');if(pill){pill.textContent=r;pill.dataset.r=r;}const msg=$('#riskMsg');if(msg)msg.textContent=R.msg;pressed('#segRisk','risk',r);
+  leds.forEach(l=>{const h=STATE_HEX[st[l.group]];l.core.material.color.setHex(h);l.halo.material.color.setHex(h);});
+  const hue={laser:st.laser,vib:st.vib,press:st.press,temp:st.temp};
+  for(const k in cableMats)cableMats[k].emissive.setHex(k&&risk==='NORMAL'?0x0c7c86:STATE_HEX[hue[k]]);
+  const on=[r==='NORMAL',r==='WARNING',r==='CRITICAL'];
+  beaconMats.forEach((m,i)=>{m.emissiveIntensity=on[i]?1.4:0;});
+  engMat.color.setHex(STATE_HEX[st.unit]);setPulseColors();
+  hist.length=0;drawDisplay();}
+const RISK_ORDER=['NORMAL','WARNING','CRITICAL'];
+function cycleRisk(){setRisk(RISK_ORDER[(RISK_ORDER.indexOf(risk)+1)%3]);}
+
+/* =====================  enclosure modes, cutaway, explode  ===================== */
+const encl={mode:'semi',t:72};
+function setEnclosure(mode,t){
+  encl.mode=mode;encl.t=t;
+  const op=mode==='xray'?.07:.9*(1-t/100)+.04;
+  M.glass.opacity=op;M.glass.envMapIntensity=mode==='xray'?.6:1.3;M.edge.opacity=mode==='xray'?.55:.32;
+  panels.forEach(p=>{p.gl.visible=p.edges.visible=(mode!=='opaque');p.so.visible=p.wp.visible=(mode==='opaque');});
+  pressed('#segMat','mat',mode);$('#transp').value=t;$('#transpOut').textContent=t+'%';}
+panels.forEach(p=>{p.so.userData.solid=true;});
+let viewMode='normal',exAnim=null;
+function setExplode(to){exAnim={from:exF,to:to,t0:performance.now(),dur:1300};document.body.classList.toggle('ex',to>0);measureTags();}
+function stepExplode(now){
+  if(!exAnim)return;const u=Math.min(1,(now-exAnim.t0)/exAnim.dur),e=u*u*(3-2*u);
+  applyExplode(exAnim.from+(exAnim.to-exAnim.from)*e);if(u>=1)exAnim=null;}
+function setView(v){
+  viewMode=v;pressed('#segView','view',v);
+  if(v==='normal'){setEnclosure('semi',72);setExplode(0);}
+  else if(v==='transparent'){setEnclosure('xray',100);setExplode(0);}
+  else{setExplode(1);}
+  camTo(preset,900);}
+function setCut(on){parts.pFront.visible=!on;chamberWallFull.visible=!on;chamberWallCut.visible=on;}
+
+/* =====================  camera presets  ===================== */
+const DIRS={iso:[1,.78,1.15],front:[0,.1,1],back:[0,.1,-1],left:[-1,.1,0],right:[1,.1,0],top:[0,1,.02],bottom:[0,-1,.02]};
+let preset='iso',tween=null;
+function fitDist(){
+  const ex=viewMode==='exploded',w=stage.clientWidth||1,h=stage.clientHeight||1,a=w/h,half=Math.tan(camera.fov*Math.PI/360);
+  return Math.max((ex?10.6:7.2)/Math.sin(camera.fov*Math.PI/360),(ex?9.5:7.6)/(half*a));}
+function camTarget(){return viewMode==='exploded'?new V3(1.8,6.0,.6):new V3(1.6,4.2,0);}
+function camTo(name,dur){
+  preset=name;pressed('#camBar','cam',name);
+  const dir=new V3().fromArray(DIRS[name]).normalize(),tgt=camTarget(),toOff=dir.multiplyScalar(fitDist());
+  const fromS=new T.Spherical().setFromVector3(camera.position.clone().sub(controls.target)),toS=new T.Spherical().setFromVector3(toOff);
+  if(!dur){controls.target.copy(tgt);camera.position.copy(tgt).add(toOff);camera.lookAt(tgt);controls.update();tween=null;return;}
+  tween={t0:performance.now(),dur:dur,fromT:controls.target.clone(),toT:tgt,fromS:fromS,toS:toS};}
+function stepTween(now){
+  if(!tween)return;const u=Math.min(1,(now-tween.t0)/tween.dur),e=u*u*(3-2*u),f=tween.fromS,t=tween.toS;
+  let dth=t.theta-f.theta;if(dth>Math.PI)dth-=2*Math.PI;if(dth<-Math.PI)dth+=2*Math.PI;
+  const s=new T.Spherical(f.radius+(t.radius-f.radius)*e,f.phi+(t.phi-f.phi)*e,f.theta+dth*e);
+  controls.target.lerpVectors(tween.fromT,tween.toT,e);camera.position.setFromSpherical(s).add(controls.target);
+  if(u>=1)tween=null;}
+controls.addEventListener('start',()=>{tween=null;$('#hint').classList.add('gone');pressed('#camBar','cam','');});
+
+/* =====================  selection, picking  ===================== */
+let selId=null,selBox=null;const swapped=[];
+function deepVisible(o){while(o){if(!o.visible)return false;o=o.parent;}return true;}
+function clearHighlight(){swapped.forEach(s=>{const m=s[0].material;s[0].material=s[1];m.dispose();});swapped.length=0;
+  if(selBox){scene.remove(selBox);selBox.geometry.dispose();selBox=null;}}
+function select(id){
+  clearHighlight();selId=id;
+  if(!id||!comps[id]){$('#info').classList.remove('show');selId=null;return;}
+  const c=comps[id];
+  if(id!=='enclosure'&&id!=='beacon')c.roots.forEach(r=>r.traverse(o=>{
+    if(o.isMesh&&o.userData.comp===id&&o.material&&!Array.isArray(o.material)&&('emissive' in o.material)){
+      swapped.push([o,o.material]);const m=o.material.clone();m.emissive=new T.Color(0x0c7c86);m.emissiveIntensity=.55;o.material=m;}}));
+  selBox=new T.Box3Helper(new T.Box3(),0x0c7c86);selBox.material.depthTest=false;selBox.renderOrder=20;scene.add(selBox);
+  $('#infoTitle').textContent=c.name;$('#infoPurpose').textContent=c.purpose;$('#infoParam').textContent=c.param;$('#infoRole').textContent=c.role;
+  $('#info').classList.add('show');}
+const _tb=new T.Box3();
+function updateSelBox(){
+  if(!selBox||!selId)return;const b=selBox.box;b.makeEmpty();
+  comps[selId].roots.forEach(r=>r.traverse(o=>{if(o.isMesh&&o.userData.comp===selId&&deepVisible(o)){_tb.setFromObject(o);if(!_tb.isEmpty())b.union(_tb);}}));
+  if(!b.isEmpty())b.expandByScalar(.06);selBox.visible=!b.isEmpty();}
+const pickables=[];scene.traverse(o=>{if(o.isMesh&&o.userData.comp)pickables.push(o);});
+const ray=new T.Raycaster(),ndc=new T.Vector2(),el=renderer.domElement;
+function pickAt(cx,cy){
+  const r=el.getBoundingClientRect();ndc.set((cx-r.left)/r.width*2-1,-((cy-r.top)/r.height)*2+1);ray.setFromCamera(ndc,camera);
+  const hits=ray.intersectObjects(pickables,false).filter(h=>deepVisible(h.object));
+  if(!hits.length){select(null);return;}
+  let hit=hits[0];
+  if(hit.object.userData.comp==='enclosure'&&!hit.object.userData.solid)hit=hits.find(h=>h.object.userData.comp!=='enclosure')||hits[0];
+  const id=hit.object.userData.comp;select(id);if(id==='beacon')cycleRisk();}
+let down=null;
+el.addEventListener('pointerdown',e=>{down={x:e.clientX,y:e.clientY,t:performance.now()};});
+el.addEventListener('pointerup',e=>{if(!down)return;const dx=e.clientX-down.x,dy=e.clientY-down.y,dt=performance.now()-down.t;down=null;
+  if(dx*dx+dy*dy<36&&dt<600)pickAt(e.clientX,e.clientY);});
+
+/* =====================  engineering labels with leader lines  ===================== */
+const LBL=[
+ ['NANOPREDICT','display','unit',[6.6,3.78,1.37],'sensor',1,'moves sideways'],
+ ['PRECISION WAFER STAGE','wafer','wafer',[.7,2.56,.7],'',2,'moves down'],
+ ['VACUUM CHAMBER','chamber','chamber',[-1.63,3.0,1.63],'',3,'moves forward'],
+ ['PROJECTION OPTICS','optics','optics',[.86,4.6,.1],'',4,'moves up'],
+ ['RETICLE STAGE','reticle','reticle',[1.5,6.33,.95],'',5,'moves up'],
+ ['LASER DISPLACEMENT SENSOR','laser','sLaserX',[3.35,2.62,.6],'sensor',6,'moves outward'],
+ ['NANOPREDICT MONITORING UNIT','unit','unit',[7.55,1.0,1.6],'system',7,'moves sideways'],
+ ['VIBRATION SENSOR','vib','sVib2',[0,5.62,1.0],'sensor',8,'moves outward'],
+ ['VACUUM PRESSURE SENSOR','press','sPress',[-2.27,3.0,1.9],'sensor',9,'moves outward'],
+ ['TEMPERATURE SENSOR','temp','sTemp',[0,4.43,1.22],'sensor',10,'moves outward'],
+ ['VACUUM PUMP','pump','chamber',[3.35,3.15,-1.7],'',11,'moves with chamber'],
+ ['PRECISION LINEAR RAIL','rail','rail',[1.4,1.83,.62],'',12,'moves down'],
+ ['MOTION CONTROL SYSTEM','carriage','carriage',[-2.05,1.95,0],'',13,'moves down'],
+ ['ENVIRONMENT SENSOR','env','sEnv',[6.1,4.2,.3],'sensor',14,'moves outward'],
+ ['ILLUMINATION SOURCE','source','source',[-3.75,8.05,0],'',15,'moves up'],
+ ['RISK INDICATOR','beacon','beacon',[7.1,4.42,.9],'system',16,''],
+ ['PREDICTION ENGINE','engine','unit',[6.95,1.7,-.4],'system',17,''],
+ ['OUTER ENCLOSURE','enclosure','frame',[-4.6,8.9,3.2],'',18,'panels move outward']].map(a=>({text:a[0],comp:a[1],host:a[2],pos:a[3],kind:a[4],prio:a[5],sub:a[6],w:150,h:22,sensorPart:SENSOR_PARTS.indexOf(a[2])>=0}));
+const labelsEl=$('#labels'),leadersEl=$('#leaders'),NS='http://www.w3.org/2000/svg';
+LBL.forEach(l=>{
+  l.anchor=anchor(parts[l.host],l.pos[0],l.pos[1],l.pos[2]);
+  const tag=document.createElement('div');tag.className='tag '+l.kind+' off';tag.setAttribute('role','button');tag.tabIndex=0;
+  tag.appendChild(document.createTextNode(l.text));
+  if(l.sub){const s=document.createElement('small');s.textContent=l.sub;tag.appendChild(s);}
+  tag.addEventListener('click',()=>select(l.comp));tag.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select(l.comp);}});
+  labelsEl.appendChild(tag);l.tag=tag;
+  l.line=document.createElementNS(NS,'polyline');l.dot=document.createElementNS(NS,'circle');l.dot.setAttribute('r','2.8');
+  leadersEl.appendChild(l.line);leadersEl.appendChild(l.dot);l.line.style.opacity=l.dot.style.opacity=0;});
+function measureTags(){setTimeout(()=>{LBL.forEach(l=>{l.w=l.tag.offsetWidth||150;l.h=l.tag.offsetHeight||22;});},60);}
+let uiRects=[],uiTick=0,labelsOn=true,sensorsOn=true,flowOn=true;
+function refreshUI(){uiRects=[];['#panelLeft','#rightCol .panel','#camBar','#titleBlock h1','#titleBlock p','#menuBtn'].forEach(s=>$$(s).forEach(e=>{
+  if(e.offsetParent===null)return;const r=e.getBoundingClientRect();if(r.width>0)uiRects.push({x:r.left,y:r.top,w:r.width,h:r.height});}));}
+const hit=(a,b,p)=>a.x<b.x+b.w+p&&a.x+a.w+p>b.x&&a.y<b.y+b.h+p&&a.y+a.h+p>b.y;
+const _v=new V3();
+function layoutLabels(){
+  if(uiTick++%20===0)refreshUI();
+  const W=stage.clientWidth,H=stage.clientHeight,cx=W/2,cy=H/2,cap=selId?5:(viewMode==='exploded'?18:12),placed=[];let shown=0;
+  const sr=stage.getBoundingClientRect();
+  LBL.forEach(l=>{l.anchor.getWorldPosition(_v);_v.project(camera);l.sx=(_v.x*.5+.5)*W;l.sy=(-_v.y*.5+.5)*H;l.ok=_v.z<1&&l.sx>0&&l.sx<W&&l.sy>0&&l.sy<H;});
+  const order=LBL.slice().sort((a,b)=>((b.comp===selId)-(a.comp===selId))||(a.prio-b.prio));
+  order.forEach(l=>{
+    let ok=l.ok&&(labelsOn||l.comp===selId)&&(!l.sensorPart||sensorsOn);
+    if(ok&&l.comp!==selId&&shown>=cap)ok=false;
+    let best=null;
+    if(ok){const dx0=l.sx<cx?-1:1,dy0=l.sy<cy?-1:1,cands=[[dx0,dy0],[-dx0,dy0],[dx0,-dy0],[-dx0,-dy0]];
+      for(let i=0;i<cands.length&&!best;i++){const c=cands[i],x=c[0]>0?l.sx+34:l.sx-34-l.w,y=l.sy+c[1]*26-l.h/2,r={x:x,y:y,w:l.w,h:l.h};
+        if(x<4||y<4||x+l.w>W-4||y+l.h>H-4)continue;
+        if(placed.some(p=>hit(r,p,5)))continue;
+        const abs={x:x+sr.left,y:y+sr.top,w:l.w,h:l.h};if(l.comp!==selId&&uiRects.some(u=>hit(abs,u,2)))continue;
+        best={c:c,x:x,y:y};}}
+    if(best){shown++;placed.push({x:best.x,y:best.y,w:l.w,h:l.h});
+      l.tag.style.transform='translate('+best.x.toFixed(1)+'px,'+best.y.toFixed(1)+'px)';l.tag.classList.remove('off');
+      const ex=best.c[0]>0?best.x:best.x+l.w,ey=best.y+l.h/2;
+      l.line.setAttribute('points',l.sx.toFixed(1)+','+l.sy.toFixed(1)+' '+(ex-best.c[0]*12).toFixed(1)+','+ey.toFixed(1)+' '+ex.toFixed(1)+','+ey.toFixed(1));
+      l.dot.setAttribute('cx',l.sx.toFixed(1));l.dot.setAttribute('cy',l.sy.toFixed(1));l.line.style.opacity=l.dot.style.opacity=1;}
+    else{l.tag.classList.add('off');l.line.style.opacity=l.dot.style.opacity=0;}
+    l.tag.classList.toggle('on',l.comp===selId);});}
+
+/* =====================  UI wiring  ===================== */
+$$('#segView button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+$$('#segMat button').forEach(b=>b.addEventListener('click',()=>{const m=b.dataset.mat;setEnclosure(m,m==='opaque'?20:m==='xray'?100:72);}));
+$('#transp').addEventListener('input',e=>setEnclosure('semi',+e.target.value));
+$('#tCut').addEventListener('change',e=>setCut(e.target.checked));
+$$('#segRisk button').forEach(b=>b.addEventListener('click',()=>setRisk(b.dataset.risk)));
+$$('#camBar button').forEach(b=>b.addEventListener('click',()=>camTo(b.dataset.cam,900)));
+$('#tLabels').addEventListener('change',e=>{labelsOn=e.target.checked;});
+$('#tSensors').addEventListener('change',e=>{sensorsOn=e.target.checked;SENSOR_PARTS.forEach(k=>{parts[k].visible=sensorsOn;});cableGroup.visible=sensorsOn;laserBeams.forEach(L=>{L.beam.visible=L.glow.visible=sensorsOn;});pulses.visible=sensorsOn&&flowOn;});
+$('#tFlow').addEventListener('change',e=>{flowOn=e.target.checked;pulses.visible=sensorsOn&&flowOn;if(!flowOn)flowLis.forEach(li=>li.classList.remove('hot'));});
+$('#tGrid').addEventListener('change',e=>{grid.visible=e.target.checked;});
+let playing=true;$('#tPlay').addEventListener('change',e=>{playing=e.target.checked;});
+$('#tRotate').addEventListener('change',e=>{controls.autoRotate=e.target.checked;});
+$('#infoClose').addEventListener('click',()=>select(null));
+window.addEventListener('keydown',e=>{if(e.key==='Escape')select(null);});
+$('#menuBtn').addEventListener('click',()=>{const o=$('#panelLeft').classList.toggle('open');$('#menuBtn').setAttribute('aria-expanded',String(o));});
+
+/* =====================  animation loop  ===================== */
+function resize(){const w=stage.clientWidth||1,h=stage.clientHeight||1;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+if(window.ResizeObserver)new ResizeObserver(resize).observe(stage);else window.addEventListener('resize',resize);
+resize();
+
+let time=0,last=performance.now(),lastDom=0,flowIdx=-1;
+const jit=(t,k,a)=>(Math.sin(t*61+k)+Math.sin(t*97+k*2.3))*.5*a;
+function animateScene(dt){
+  if(playing)time+=dt;const t=time,R=RISKS[risk];
+  if(playing){
+    const sx=.32*Math.sin(t*.9);
+const sz=.18*Math.sin(t*.45+1);
+
+const normalizedVibration=Math.min(1,Math.abs(cur.v)/0.12);
+const a=.0012+(normalizedVibration*.016);
+    waferMover.position.x=sx+jit(t,0,a);waferPlatform.position.z=sz+jit(t,1,a);carriageG.position.x=sx+jit(t,0,a);
+    reticleCar.position.x=-sx*1.6+jit(t,2,a)*.5;opticsCol.position.x=jit(t,3,a)*.6;opticsCol.position.z=jit(t,4,a)*.6;}
+  updateLasers();
+  const k=1-Math.exp(-dt*3);
+  ['d','v','p','t','h'].forEach(f=>{cur[f]+=(R[f]-cur[f])*k;});
+  const stg=Math.floor((t/.9)%7);
+  const active=['laser','vib','press','temp'][stg];
+  if(flowOn&&sensorsOn){
+    for(const g in cableMats)cableMats[g].emissiveIntensity+=((g===active?1.1:.12)-cableMats[g].emissiveIntensity)*Math.min(1,dt*8);
+    CABLES.forEach((c,i)=>{const on=c.g===active;for(let j=0;j<PPC;j++){
+      const u=((t*.2+j/PPC+i*.13)%1);c.curve.getPointAt(u,_pm.position);_pm.scale.setScalar(on?1.7:.8);_pm.updateMatrix();pulses.setMatrixAt(i*PPC+j,_pm.matrix);}});
+    pulses.instanceMatrix.needsUpdate=true;}
+  if(stg!==flowIdx){flowIdx=stg;flowLis.forEach((li,i)=>li.classList.toggle('hot',flowOn&&i===stg));}
+  leds.forEach((l,i)=>{const b=.6+.4*Math.sin(t*4+i);l.core.scale.setScalar(.85+.3*b);l.halo.material.opacity=.12+.2*b;});
+  const flick=.9+.1*Math.sin(t*3);beamMats.forEach(m=>{m[0].opacity=m[1]*flick;});
+  beaconMats[RISK_ORDER.indexOf(risk)].emissiveIntensity=(stg===6)?2.4:1.4;
+  if(stg===5)engMat.color.setHex(0xffffff);else engMat.color.setHex(STATE_HEX[GROUP_STATE[risk].unit]);
+}
+function updateReadouts(now){
+  if(now-lastDom<250)return;
+  lastDom=now;
+
+  $('#rDrift').textContent=fmt.d();
+  $('#rVib').textContent=fmt.v();
+  $('#rPress').textContent=fmt.p();
+  $('#rTemp').textContent=fmt.t();
+  $('#rHor').textContent=fmt.h();
+
+  hist.push(cur.d);
+  if(hist.length>60)hist.shift();
+
+  drawDisplay();
+}
+function frame(now){
+  requestAnimationFrame(frame);
+  const dt=Math.min(.05,(now-last)/1000);last=now;
+  stepTween(now);stepExplode(now);animateScene(dt);updateReadouts(now);
+  controls.update();updateSelBox();renderer.render(scene,camera);layoutLabels();}
+
+/* initial state: isometric, transparent enclosure, sensors active, data flow running */
+applyExplode(0);setEnclosure('semi',72);setRisk('NORMAL');camTo('iso',0);measureTags();
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(()=>{drawDisplay();measureTags();});
+requestAnimationFrame(frame);
+window.__np={scene:scene,camera:camera,select:select,setRisk:setRisk,setView:setView};
+}
+})();
+</script>
+</body>
+</html>
