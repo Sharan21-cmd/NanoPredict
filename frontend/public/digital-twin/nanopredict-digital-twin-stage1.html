@@ -807,17 +807,17 @@ window.addEventListener('message',(event)=>{
 
   liveTelemetry=true;
 
-  if(data.drift !== undefined)
-    cur.d=Number(data.drift);
+  if(Number.isFinite(Number(data.drift)))
+  cur.d=Number(data.drift);
 
-  if(data.vibration !== undefined)
-    cur.v=Number(data.vibration);
+if(Number.isFinite(Number(data.vibration)))
+  cur.v=Number(data.vibration);
 
-  if(data.pressure !== undefined)
-    cur.p=Number(data.pressure);
+if(Number.isFinite(Number(data.pressure)))
+  cur.p=Number(data.pressure);
 
-  if(data.temperature !== undefined)
-    cur.t=Number(data.temperature);
+if(Number.isFinite(Number(data.temperature)))
+  cur.t=Number(data.temperature);
 
   if(data.prediction?.horizon !== undefined)
     cur.h=Number(data.prediction.horizon);
@@ -1016,7 +1016,6 @@ const a=.0012+(normalizedVibration*.016);
     reticleCar.position.x=-sx*1.6+jit(t,2,a)*.5;opticsCol.position.x=jit(t,3,a)*.6;opticsCol.position.z=jit(t,4,a)*.6;}
   updateLasers();
   const k=1-Math.exp(-dt*3);
-  ['d','v','p','t','h'].forEach(f=>{cur[f]+=(R[f]-cur[f])*k;});
   const stg=Math.floor((t/.9)%7);
   const active=['laser','vib','press','temp'][stg];
   if(flowOn&&sensorsOn){
