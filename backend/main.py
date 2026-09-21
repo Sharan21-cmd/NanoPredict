@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from websocket import manager, telemetry_loop, handle_command
 from auth import authenticate_user, create_access_token, verify_access_token
+from ai.router import router as ai_router
 
 
 app = FastAPI(
@@ -13,6 +14,9 @@ app = FastAPI(
     description="Sub-Nanometer Drift & Vacuum Anomaly Prediction System",
     version="1.0.0"
 )
+
+
+app.include_router(ai_router)
 
 
 app.add_middleware(

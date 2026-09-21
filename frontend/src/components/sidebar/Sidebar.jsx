@@ -6,6 +6,7 @@ const NAV_ITEMS = [
   { label: '3D Digital Twin', icon: '◇', path: '/digital-twin' },
   { label: 'Sensor Data', icon: '▣', path: '/sensors' },
   { label: 'Predictions', icon: '⌁', path: '/predictions' },
+  { label: 'AI Assistant', icon: '✦', path: '/ai-assistant' },
   { label: 'Alerts', icon: '⚠', path: '/alerts' },
   { label: 'Reports', icon: '▤', path: '/reports' },
 ]

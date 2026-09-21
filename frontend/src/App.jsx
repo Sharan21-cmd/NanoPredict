@@ -14,6 +14,7 @@ import Predictions from './pages/Predictions'
 import Alerts from './pages/Alerts'
 import Reports from './pages/Reports'
 import Settings from './pages/Settings'
+import AIAssistantPage from './pages/AIAssistantPage'
 
 import Login from './auth/Login'
 
@@ -56,6 +57,7 @@ export default function App() {
                 <Route path="/alerts" element={<Alerts />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/ai-assistant" element={<AIAssistantPage />} />
               </Routes>
 
             </div>

@@ -6,6 +6,8 @@ from fastapi import WebSocket
 from telemetry import telemetry_engine
 from risk import calculate_risk, generate_alerts
 from prediction import prediction_engine
+from ai.state import latest_state
+from ai.events import event_store
 
 
 class ConnectionManager:
@@ -178,6 +180,22 @@ async def telemetry_loop():
             risk = calculate_risk(telemetry)
             alerts = generate_alerts(telemetry, risk)
             prediction = prediction_engine.predict(telemetry, risk)
+
+            # Feed the existing telemetry pipeline into the AI state
+            # and event history. No second telemetry generator is used.
+            latest_state.update(
+                telemetry=telemetry,
+                risk=risk,
+                alerts=alerts,
+                prediction=prediction,
+            )
+
+            event_store.record_from_payload(
+                telemetry=telemetry,
+                risk=risk,
+                alerts=alerts,
+                prediction=prediction,
+            )
 
             payload = {
                 "type": "telemetry",
