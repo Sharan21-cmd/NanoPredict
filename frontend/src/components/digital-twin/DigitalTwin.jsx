@@ -54,7 +54,7 @@ export default function DigitalTwin() {
       connected,
     }
 
-    iframe.contentWindow.postMessage(message, window.location.origin)
+    iframe.contentWindow.postMessage(message, '*')
   }, [telemetry, connected])
 
   /*

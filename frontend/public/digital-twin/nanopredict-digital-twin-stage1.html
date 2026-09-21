@@ -803,7 +803,7 @@ window.addEventListener('message',(event)=>{
 
   const data=event.data;
 
-  if(!data || data.type!=='NANOPREDICT_TELEMETRY')return;
+  if(event.source !== window.parent)return;
 
   liveTelemetry=true;
 
