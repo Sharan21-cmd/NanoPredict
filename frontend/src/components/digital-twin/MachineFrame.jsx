@@ -127,12 +127,12 @@ export default function MachineFrame({
          ===================================================== */}
 
       <SolidPanel
-        position={[0, 0.16, 0]}
-        scale={[5.15, 0.32, 3.55]}
-        color={BODY_DARK}
-        metalness={0.72}
-        roughness={0.36}
-      />
+  position={[0, 0.16, 0]}
+  scale={[5.15, 0.32, 3.55]}
+  color="#080808"
+  metalness={0.78}
+  roughness={0.30}
+/>
 
       <SolidPanel
         position={[0, 0.37, 0]}
