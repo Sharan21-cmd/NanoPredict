@@ -312,25 +312,30 @@ function MotorDrivenStage({
   displacementStatus,
 }) {
   const groupRef = useRef(null)
+  const rotationRef = useRef(0)
 
   const x = mapMotorPosition(positionMm)
   const status = statusColor(displacementStatus)
 
-  useFrame(() => {
+  const rotationSpeed =
+    displacementStatus === 'CRITICAL' ? 2.8 :
+    displacementStatus === 'WARNING' ? 1.4 :
+    0.35
+
+  useFrame((_, delta) => {
     if (!groupRef.current) return
 
-    /*
-     * IMPORTANT:
-     * The backend motor position directly controls this assembly.
-     *
-     * Smooth interpolation is only visual smoothing.
-     * The target remains telemetry.stage.positionMm.
-     */
+    // Smooth telemetry-driven X movement
     groupRef.current.position.x = THREE.MathUtils.lerp(
       groupRef.current.position.x,
       x,
-      0.16
+      1 - Math.exp(-8 * delta)
     )
+
+    // Smooth continuous rotation based on severity
+    rotationRef.current += rotationSpeed * delta
+
+    groupRef.current.rotation.y = rotationRef.current
   })
 
   return (
