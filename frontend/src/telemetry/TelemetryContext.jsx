@@ -25,6 +25,10 @@ function mapBackendTelemetry(packet) {
       valueC: data.environment.temperature_c,
     },
 
+    environment: {
+      pressureHpa: data.environment.pressure_hpa ?? null,
+    },
+
     vibration: {
       rmsG: data.vibration.acceleration_g,
     },
@@ -78,6 +82,10 @@ const initialTelemetry = {
 
   temperature: {
     valueC: 24.5,
+  },
+
+  environment: {
+    pressureHpa: null,
   },
 
   vibration: {

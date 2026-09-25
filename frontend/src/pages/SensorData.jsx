@@ -244,6 +244,35 @@ export default function SensorData() {
         </Panel>
 
         <Panel
+          title="Ambient Pressure"
+          subtitle="BMP280 • Live"
+        >
+          <div className="p-4">
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="text-[9px] text-slate-600">
+                  ATMOSPHERIC PRESSURE
+                </p>
+
+                <p className="text-3xl font-mono font-semibold text-cyan-400 mt-1">
+                  {telemetry.environment?.pressureHpa != null
+                    ? telemetry.environment.pressureHpa.toFixed(2)
+                    : '--'}
+                </p>
+
+                <p className="text-[10px] text-slate-500">
+                  hPa
+                </p>
+              </div>
+
+              <div className="px-2 py-1 text-[9px] border rounded-sm text-cyan-400 bg-cyan-400/10 border-cyan-400/20">
+                LIVE
+              </div>
+            </div>
+          </div>
+        </Panel>
+
+        <Panel
           title="Distance Tracking"
           subtitle="VL53L1X correlation"
         >
