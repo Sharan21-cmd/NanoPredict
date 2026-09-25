@@ -15,7 +15,7 @@ function mapBackendTelemetry(packet) {
     stage: {
       positionMm: data.motor.position,
       targetPositionMm: data.motor.target_position ?? data.motor.position,
-      moving: data.motor.status === 'RUNNING',
+      moving: String(data.motor?.status ?? '').toUpperCase() === 'RUNNING',
       speedMmPerSec: data.motor.speed_mm_per_sec ?? data.motor.speed_rpm,
     },
 
