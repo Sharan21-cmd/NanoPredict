@@ -1,8 +1,23 @@
 import random
 import time
 
+try:
+    from .hardware import hardware_telemetry
+except ImportError:
+    from hardware import hardware_telemetry
+
 
 class TelemetryGenerator:
+    """
+    Simulation engine used only when real Raspberry Pi telemetry
+    is unavailable.
+
+    Important:
+    - No fake vacuum/chamber-pressure values are generated.
+    - BMP280 pressure comes from real hardware telemetry.
+    - Vacuum commands are retained only for frontend compatibility.
+    """
+
     def __init__(self):
         self.start_time = time.time()
 
@@ -16,6 +31,62 @@ class TelemetryGenerator:
         self.temperature_mode = "normal"
         self.vibration_mode = "normal"
 
+        # Compatibility only.
+        # This does NOT generate or modify pressure.
+        self.vacuum_mode = "normal"
+
+    # ---------------------------------------------------------
+    # Motor controls
+    # ---------------------------------------------------------
+
+    def set_target_position(self, position):
+        self.target_position = float(position)
+
+        if self.target_position != self.position:
+            self.motor_running = True
+
+    def set_motor_speed(self, speed):
+        self.speed_mm_per_sec = max(0.0, float(speed))
+
+        if self.speed_mm_per_sec > 0:
+            self.motor_running = True
+
+    def stop_motor(self):
+        self.motor_running = False
+        self.speed_mm_per_sec = 0.0
+
+    # ---------------------------------------------------------
+    # Simulation modes
+    # ---------------------------------------------------------
+
+    def set_temperature_mode(self, mode):
+        if mode in ("normal", "heat"):
+            self.temperature_mode = mode
+
+    def set_vibration_mode(self, mode):
+        if mode in ("normal", "shake"):
+            self.vibration_mode = mode
+
+    def set_vacuum_mode(self, mode):
+        """
+        Compatibility method.
+
+        We intentionally do NOT generate fake vacuum pressure.
+        Real BMP280 pressure remains controlled by hardware telemetry.
+        """
+        if mode in ("normal", "leak"):
+            self.vacuum_mode = mode
+
+    def normalize_sensors(self):
+        self.critical_mode = False
+        self.temperature_mode = "normal"
+        self.vibration_mode = "normal"
+        self.vacuum_mode = "normal"
+
+    # ---------------------------------------------------------
+    # Simulation telemetry
+    # ---------------------------------------------------------
+
     def generate(self):
         elapsed = time.time() - self.start_time
 
@@ -24,11 +95,26 @@ class TelemetryGenerator:
         # -----------------------------------------------------
 
         if self.motor_running:
-            self.position += self.speed_mm_per_sec * 0.01
+            direction = 1.0
 
-            if self.position >= self.target_position:
+            if self.target_position < self.position:
+                direction = -1.0
+
+            self.position += (
+                direction
+                * self.speed_mm_per_sec
+                * 0.01
+            )
+
+            if direction > 0 and self.position >= self.target_position:
                 self.position = self.target_position
                 self.motor_running = False
+                self.speed_mm_per_sec = 0.0
+
+            elif direction < 0 and self.position <= self.target_position:
+                self.position = self.target_position
+                self.motor_running = False
+                self.speed_mm_per_sec = 0.0
 
         # -----------------------------------------------------
         # Temperature
@@ -66,16 +152,14 @@ class TelemetryGenerator:
         humidity = 45.0 + random.uniform(-1.0, 1.0)
 
         # -----------------------------------------------------
-        # Sub-nanometer laser drift
+        # Laser drift
         # -----------------------------------------------------
 
         if self.critical_mode:
             drift_nm = random.uniform(4.0, 6.0) * random.choice([-1, 1])
-
         else:
             drift_nm = random.uniform(-0.35, 0.35)
 
-        # Convert nm → mm
         laser_displacement = (
             self.position +
             (drift_nm / 1_000_000)
@@ -89,25 +173,18 @@ class TelemetryGenerator:
             motor_speed_rpm = 1200 + random.uniform(-30, 30)
             motor_current = 0.82 + random.uniform(-0.05, 0.05)
             motor_status = "RUNNING"
-
         else:
             motor_speed_rpm = 0.0
             motor_current = 0.15 + random.uniform(-0.02, 0.02)
             motor_status = "STOPPED"
 
         # -----------------------------------------------------
-        # Simulation telemetry packet
+        # Simulation packet
         # -----------------------------------------------------
-        #
-        # IMPORTANT:
-        # No fake chamber-pressure value is generated here.
-        # Real BMP280 pressure is provided only by hardware mode.
-        #
 
         return {
             "timestamp": time.time(),
             "elapsed": round(elapsed, 2),
-
             "source": "simulation",
 
             "motor": {
@@ -152,12 +229,10 @@ class TelemetryGenerator:
                     humidity,
                     2
                 ),
-
-                # No simulated pressure.
                 "pressure_hpa": None
             },
 
-            # Temporary compatibility object.
+            # Compatibility only.
             # This is NOT a vacuum measurement.
             "vacuum": {
                 "pressure_hpa": None,
@@ -166,8 +241,12 @@ class TelemetryGenerator:
         }
 
 
+# Global simulation engine expected by websocket.py
+telemetry_engine = TelemetryGenerator()
+
+
 # ---------------------------------------------------------
-# Hardware telemetry
+# Real Raspberry Pi telemetry
 # ---------------------------------------------------------
 
 def generate_from_hardware():
@@ -184,8 +263,23 @@ def generate_from_hardware():
     temperature = environment_data.get("temperature_c")
     pressure_hpa = environment_data.get("pressure_hpa")
 
+    # Require the core real sensors.
     if acceleration is None or temperature is None:
         return None
+
+    step_count = int(
+        motor_data.get(
+            "step_count",
+            motor_data.get("position_steps", 0)
+        )
+    )
+
+    position_steps = int(
+        motor_data.get(
+            "position_steps",
+            step_count
+        )
+    )
 
     return {
         "timestamp": data.get(
@@ -198,19 +292,9 @@ def generate_from_hardware():
         "source": "raspberry_pi",
 
         "motor": {
-            "position": float(
-                motor_data.get(
-                    "position_steps",
-                    0.0
-                )
-            ),
+            "position": float(position_steps),
 
-            "target_position": float(
-                motor_data.get(
-                    "position_steps",
-                    0.0
-                )
-            ),
+            "target_position": float(position_steps),
 
             "speed_rpm": 0.0,
 
@@ -223,19 +307,9 @@ def generate_from_hardware():
                 "UNKNOWN"
             ),
 
-            "step_count": int(
-                motor_data.get(
-                    "step_count",
-                    0
-                )
-            ),
+            "step_count": step_count,
 
-            "position_steps": int(
-                motor_data.get(
-                    "position_steps",
-                    0
-                )
-            )
+            "position_steps": position_steps
         },
 
         "laser": {
@@ -245,26 +319,26 @@ def generate_from_hardware():
 
         "vibration": {
             "acceleration_g": round(
-                acceleration,
+                float(acceleration),
                 4
             ),
 
             "status": (
                 "HIGH"
-                if acceleration >= 0.80
+                if float(acceleration) >= 0.80
                 else "NORMAL"
             )
         },
 
         "environment": {
             "temperature_c": round(
-                temperature,
+                float(temperature),
                 2
             ),
 
             "pressure_hpa": (
                 round(
-                    pressure_hpa,
+                    float(pressure_hpa),
                     2
                 )
                 if pressure_hpa is not None
@@ -272,13 +346,13 @@ def generate_from_hardware():
             )
         },
 
-        # Temporary compatibility object.
-        # This contains the SAME REAL BMP280 pressure,
-        # but it is NOT a separate vacuum sensor.
+        # Compatibility object only.
+        # It carries the SAME REAL BMP280 pressure.
+        # It is NOT a separate vacuum sensor.
         "vacuum": {
             "pressure_hpa": (
                 round(
-                    pressure_hpa,
+                    float(pressure_hpa),
                     2
                 )
                 if pressure_hpa is not None

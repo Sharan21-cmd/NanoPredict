@@ -144,7 +144,7 @@ def calculate_risk(telemetry):
     }
 
 
-def generate_alerts(telemetry):
+def generate_alerts(telemetry, risk=None):
     alerts = []
 
     vibration = telemetry["vibration"]["acceleration_g"]
