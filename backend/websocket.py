@@ -3,7 +3,7 @@ import json
 
 from fastapi import WebSocket
 
-from telemetry import telemetry_engine
+from telemetry import telemetry_engine, generate_from_hardware
 from risk import calculate_risk, generate_alerts
 from prediction import prediction_engine
 from ai.state import latest_state
@@ -49,21 +49,15 @@ manager = ConnectionManager()
 
 
 async def handle_command(message: str):
-    """
-    Process commands received from the frontend.
-    """
-
     try:
         command = json.loads(message)
 
-        command_type = command.get("command") or command.get("type")
-
-        # -----------------------------------------------------
-        # MOTOR COMMANDS
-        # -----------------------------------------------------
+        command_type = (
+            command.get("command")
+            or command.get("type")
+        )
 
         if command_type == "set_target_position":
-
             position = command.get("position_mm")
 
             if position is not None:
@@ -75,13 +69,10 @@ async def handle_command(message: str):
                 )
 
         elif command_type == "stop_motor":
-
             telemetry_engine.stop_motor()
-
             print("[Command] Motor stopped")
 
         elif command_type == "set_motor_speed":
-
             speed = command.get("speed_mm_per_sec")
 
             if speed is not None:
@@ -92,83 +83,56 @@ async def handle_command(message: str):
                     f"{speed} mm/s"
                 )
 
-        # -----------------------------------------------------
-        # TEMPERATURE
-        # -----------------------------------------------------
-
         elif command_type == "set_temperature_mode":
-
             mode = command.get("mode")
 
             if mode in ("normal", "heat"):
                 telemetry_engine.set_temperature_mode(mode)
 
                 print(
-                    f"[Command] Temperature mode → "
-                    f"{mode}"
+                    f"[Command] Temperature mode → {mode}"
                 )
 
-        # -----------------------------------------------------
-        # VIBRATION
-        # -----------------------------------------------------
-
         elif command_type == "set_vibration_mode":
-
             mode = command.get("mode")
 
             if mode in ("normal", "shake"):
                 telemetry_engine.set_vibration_mode(mode)
 
                 print(
-                    f"[Command] Vibration mode → "
-                    f"{mode}"
+                    f"[Command] Vibration mode → {mode}"
                 )
 
-        # -----------------------------------------------------
-        # VACUUM
-        # -----------------------------------------------------
-
         elif command_type == "set_vacuum_mode":
-
             mode = command.get("mode")
 
             if mode in ("normal", "leak"):
                 telemetry_engine.set_vacuum_mode(mode)
 
                 print(
-                    f"[Command] Vacuum mode → "
-                    f"{mode}"
+                    f"[Command] Vacuum mode → {mode}"
                 )
 
-        # -----------------------------------------------------
-        # NORMALIZE EVERYTHING
-        # -----------------------------------------------------
-
-        elif command_type in ("normalize", "normalize_sensors"):
-
+        elif command_type in (
+            "normalize",
+            "normalize_sensors"
+        ):
             telemetry_engine.stop_motor()
             telemetry_engine.normalize_sensors()
 
             print("[Command] System normalized")
 
         else:
-
             print(
                 f"[Command] Unknown command: "
                 f"{command_type}"
             )
 
     except json.JSONDecodeError:
-
-        print(
-            "[Command] Invalid JSON received"
-        )
+        print("[Command] Invalid JSON received")
 
     except Exception as e:
-
-        print(
-            f"[Command] ERROR: {e}"
-        )
+        print(f"[Command] ERROR: {e}")
 
 
 async def telemetry_loop():
@@ -176,19 +140,57 @@ async def telemetry_loop():
         try:
             print("[Telemetry] Generating packet...")
 
-            telemetry = telemetry_engine.generate()
-            risk = calculate_risk(telemetry)
-            alerts = generate_alerts(telemetry, risk)
-            prediction = prediction_engine.predict(telemetry, risk)
+            # -------------------------------------------------
+            # REAL RASPBERRY PI DATA
+            # -------------------------------------------------
 
-            # Feed the existing telemetry pipeline into the AI state
-            # and event history. No second telemetry generator is used.
+            telemetry = generate_from_hardware()
+
+            # -------------------------------------------------
+            # FALLBACK TO SIMULATION
+            # -------------------------------------------------
+
+            if telemetry is None:
+                telemetry = telemetry_engine.generate()
+
+            # -------------------------------------------------
+            # RISK ANALYSIS
+            # -------------------------------------------------
+
+            risk = calculate_risk(telemetry)
+
+            # -------------------------------------------------
+            # ALERT GENERATION
+            # -------------------------------------------------
+
+            alerts = generate_alerts(
+                telemetry,
+                risk
+            )
+
+            # -------------------------------------------------
+            # PREDICTION
+            # -------------------------------------------------
+
+            prediction = prediction_engine.predict(
+                telemetry,
+                risk
+            )
+
+            # -------------------------------------------------
+            # UPDATE CURRENT SYSTEM STATE
+            # -------------------------------------------------
+
             latest_state.update(
                 telemetry=telemetry,
                 risk=risk,
                 alerts=alerts,
                 prediction=prediction,
             )
+
+            # -------------------------------------------------
+            # STORE EVENT
+            # -------------------------------------------------
 
             event_store.record_from_payload(
                 telemetry=telemetry,
@@ -197,18 +199,24 @@ async def telemetry_loop():
                 prediction=prediction,
             )
 
+            # -------------------------------------------------
+            # SEND TO FRONTEND
+            # -------------------------------------------------
+
             payload = {
                 "type": "telemetry",
                 "timestamp": telemetry["timestamp"],
                 "telemetry": telemetry,
                 "risk": risk,
                 "alerts": alerts,
-                "prediction": prediction
+                "prediction": prediction,
             }
 
             await manager.broadcast(payload)
 
         except Exception as e:
-            print(f"[Telemetry] ERROR: {e}")
+            print(
+                f"[Telemetry] ERROR: {e}"
+            )
 
         await asyncio.sleep(1)

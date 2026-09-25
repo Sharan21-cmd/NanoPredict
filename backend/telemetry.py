@@ -1,6 +1,8 @@
 import random
 import time
 
+from hardware import hardware_telemetry
+
 
 class TelemetryEngine:
     def __init__(self):
@@ -225,5 +227,64 @@ class TelemetryEngine:
             }
         }
 
+def generate_from_hardware():
+    data = hardware_telemetry.latest
 
+    if not data:
+        return None
+
+    vibration_data = data.get("vibration", {})
+    environment_data = data.get("environment", {})
+    motor_data = data.get("motor", {})
+
+    acceleration = vibration_data.get("acceleration_g")
+    temperature = environment_data.get("temperature_c")
+    pressure_hpa = environment_data.get("pressure_hpa")
+
+    if acceleration is None or temperature is None:
+        return None
+
+    return {
+        "timestamp": data.get("timestamp", time.time()),
+        "elapsed": 0.0,
+
+        "source": "raspberry_pi",
+
+        "motor": {
+            "position": 0.0,
+            "target_position": 0.0,
+            "speed_rpm": 0.0,
+            "speed_mm_per_sec": 0.0,
+            "current_a": 0.0,
+            "status": motor_data.get("status", "UNKNOWN")
+        },
+
+        "laser": {
+            "displacement_mm": 0.0,
+            "drift_nm": 0.0
+        },
+
+        "vibration": {
+            "acceleration_g": round(acceleration, 4),
+            "status": (
+                "HIGH"
+                if acceleration >= 0.80
+                else "NORMAL"
+            )
+        },
+
+        "environment": {
+            "temperature_c": round(temperature, 2),
+            "pressure_hpa": (
+                round(pressure_hpa, 2)
+                if pressure_hpa is not None
+                else None
+            )
+        },
+
+        "vacuum": {
+            "pressure_mbar": 0.00012,
+            "status": "SIMULATED"
+        }
+    }
 telemetry_engine = TelemetryEngine()
