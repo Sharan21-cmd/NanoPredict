@@ -54,6 +54,9 @@ export default function Scene({
   const positionMm =
     telemetry?.stage?.positionMm ?? 0
 
+  const positionSteps =
+    telemetry?.stage?.positionSteps ?? telemetry?.stage?.stepCount ?? 0
+
   const temperature =
     telemetry?.temperature?.valueC ?? 0
 
@@ -166,6 +169,7 @@ export default function Scene({
           ===================================================== */}
       <LithographyMachine
         positionMm={positionMm}
+        positionSteps={positionSteps}
         statuses={statuses}
       />
 

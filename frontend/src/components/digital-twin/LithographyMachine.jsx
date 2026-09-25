@@ -309,12 +309,23 @@ function Wafer() {
 
 function MotorDrivenStage({
   positionMm,
+  positionSteps,
   displacementStatus,
 }) {
   const groupRef = useRef(null)
   const rotationRef = useRef(0)
 
-  const x = mapMotorPosition(positionMm)
+  // Real Raspberry Pi step count drives the visual stage position.
+  // This is a visual mapping only; it is NOT a physical mm conversion.
+  const VISUAL_STEPS = 2000
+  const stepPosition = Math.max(
+    0,
+    Math.min(VISUAL_STEPS, Number(positionSteps) || 0)
+  )
+  const visualPositionMm =
+    (stepPosition / VISUAL_STEPS) * 100
+
+  const x = mapMotorPosition(visualPositionMm)
   const status = statusColor(displacementStatus)
 
   const rotationSpeed =
@@ -717,6 +728,7 @@ function SensorNode({
 
 export default function LithographyMachine({
   positionMm = 0,
+  positionSteps = 0,
   statuses = {
     pressure: 'normal',
     vibration: 'normal',
@@ -738,6 +750,7 @@ export default function LithographyMachine({
 
       <MotorDrivenStage
         positionMm={positionMm}
+        positionSteps={positionSteps}
         displacementStatus={statuses.displacement}
       />
 
