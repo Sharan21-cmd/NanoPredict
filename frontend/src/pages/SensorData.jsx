@@ -3,32 +3,25 @@ import { useTelemetry } from '../telemetry/useTelemetry'
 
 const SENSOR_INFO = [
   {
-    id: 'distance',
-    sensor: 'VL53L1X',
-    name: 'Stage Distance',
-    unit: 'mm',
-    description: 'Linear stage position measurement',
-  },
-  {
     id: 'vibration',
     sensor: 'MPU6050',
     name: 'Vibration',
     unit: 'g RMS',
-    description: 'Mechanical vibration measurement',
+    description: 'Real mechanical vibration measurement',
   },
   {
     id: 'temperature',
-    sensor: 'TEMP-01',
+    sensor: 'BMP280',
     name: 'Temperature',
     unit: '°C',
-    description: 'Prototype temperature measurement',
+    description: 'Real ambient temperature measurement',
   },
   {
-    id: 'vacuum',
+    id: 'pressure',
     sensor: 'BMP280',
-    name: 'Vacuum Pressure',
-    unit: 'Pa',
-    description: 'Chamber pressure measurement',
+    name: 'Ambient Pressure',
+    unit: 'hPa',
+    description: 'Real atmospheric pressure measurement',
   },
 ]
 
@@ -65,8 +58,8 @@ const STATUS_STYLES = {
 }
 
 function formatValue(type, value) {
-  if (type === 'vacuum') {
-    return value.toExponential(2)
+  if (value == null) {
+    return '--'
   }
 
   if (type === 'temperature') {
@@ -74,6 +67,10 @@ function formatValue(type, value) {
   }
 
   if (type === 'vibration') {
+    return value.toFixed(2)
+  }
+
+  if (type === 'pressure') {
     return value.toFixed(2)
   }
 
@@ -86,23 +83,18 @@ export default function SensorData() {
   const readings = [
     {
       ...SENSOR_INFO[0],
-      type: 'distance',
-      value: telemetry.distance.valueMm,
-    },
-    {
-      ...SENSOR_INFO[1],
       type: 'vibration',
       value: telemetry.vibration.rmsG,
     },
     {
-      ...SENSOR_INFO[2],
+      ...SENSOR_INFO[1],
       type: 'temperature',
       value: telemetry.temperature.valueC,
     },
     {
-      ...SENSOR_INFO[3],
-      type: 'vacuum',
-      value: telemetry.vacuum.pressurePa,
+      ...SENSOR_INFO[2],
+      type: 'pressure',
+      value: telemetry.environment?.pressureHpa ?? null,
     },
   ]
 
@@ -120,8 +112,8 @@ export default function SensorData() {
         </p>
       </div>
 
-      {/* Sensor cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+      {/* Real sensor cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
 
         {readings.map((reading) => {
           const status = getStatus(
@@ -190,7 +182,7 @@ export default function SensorData() {
                     </span>
 
                     <span className="text-[9px] font-mono text-cyan-400">
-                      BACKEND
+                      RASPBERRY PI
                     </span>
                   </div>
 
@@ -206,24 +198,25 @@ export default function SensorData() {
       {/* Telemetry overview */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-3 mt-3">
 
+        {/* Real motor position */}
         <Panel
-          title="Stage Position"
-          subtitle="Virtual motor position"
+          title="Motor Position"
+          subtitle="Raspberry Pi stepper telemetry"
         >
           <div className="p-4">
 
             <div className="flex items-end justify-between">
               <div>
                 <p className="text-[9px] text-slate-600">
-                  CURRENT POSITION
+                  POSITION STEPS
                 </p>
 
                 <p className="text-3xl font-mono font-semibold text-slate-100 mt-1">
-                  {telemetry.stage.positionMm.toFixed(2)}
+                  {telemetry.stage.positionSteps ?? 0}
                 </p>
 
                 <p className="text-[10px] text-slate-500">
-                  mm
+                  steps
                 </p>
               </div>
 
@@ -243,11 +236,13 @@ export default function SensorData() {
           </div>
         </Panel>
 
+        {/* Real BMP280 pressure */}
         <Panel
           title="Ambient Pressure"
-          subtitle="BMP280 • Live"
+          subtitle="BMP280 • Real / Live"
         >
           <div className="p-4">
+
             <div className="flex items-end justify-between">
               <div>
                 <p className="text-[9px] text-slate-600">
@@ -265,54 +260,15 @@ export default function SensorData() {
                 </p>
               </div>
 
-              <div className="px-2 py-1 text-[9px] border rounded-sm text-cyan-400 bg-cyan-400/10 border-cyan-400/20">
-                LIVE
+              <div className="px-2 py-1 text-[9px] border rounded-sm text-emerald-400 bg-emerald-400/10 border-emerald-400/20">
+                REAL • LIVE
               </div>
             </div>
-          </div>
-        </Panel>
-
-        <Panel
-          title="Distance Tracking"
-          subtitle="VL53L1X correlation"
-        >
-          <div className="p-4">
-
-            <div className="flex justify-between items-center">
-              <span className="text-[10px] text-slate-500">
-                Stage
-              </span>
-
-              <span className="font-mono text-sm text-slate-200">
-                {telemetry.stage.positionMm.toFixed(2)} mm
-              </span>
-            </div>
-
-            <div className="flex justify-between items-center mt-3">
-              <span className="text-[10px] text-slate-500">
-                Distance Sensor
-              </span>
-
-              <span className="font-mono text-sm text-cyan-400">
-                {telemetry.distance.valueMm.toFixed(2)} mm
-              </span>
-            </div>
-
-            <div className="mt-4 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-cyan-400 transition-all duration-75"
-                style={{
-                  width: `${Math.min(
-                    telemetry.distance.valueMm,
-                    100
-                  )}%`,
-                }}
-              />
-            </div>
 
           </div>
         </Panel>
 
+        {/* Connection status */}
         <Panel
           title="Telemetry Status"
           subtitle="WebSocket connection"
@@ -335,7 +291,7 @@ export default function SensorData() {
                 </span>
 
                 <span className="text-[9px] font-mono text-slate-300">
-                  20 Hz
+                  LIVE
                 </span>
               </div>
 
@@ -345,7 +301,7 @@ export default function SensorData() {
                 </span>
 
                 <span className="text-[9px] font-mono text-cyan-400">
-                  LIVE BACKEND
+                  RASPBERRY PI
                 </span>
               </div>
 
