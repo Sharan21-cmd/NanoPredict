@@ -56,12 +56,15 @@ VOCABULARY = {
     "what",
     "when",
     "how",
-    "temperature",
     "thermal",
+    "heat",
 }
 
 
-# Common user misspellings seen in the intended NanoPredict queries.
+# ---------------------------------------------------------------------------
+# Common user misspellings.
+# ---------------------------------------------------------------------------
+
 COMMON_CORRECTIONS = {
     "vibraion": "vibration",
     "vibraton": "vibration",
@@ -129,7 +132,9 @@ def normalize_question(question: str) -> str:
         )
 
         if matches:
-            normalized_words.append(matches[0])
+            normalized_words.append(
+                matches[0]
+            )
         else:
             normalized_words.append(word)
 
@@ -175,6 +180,7 @@ def classify_intent(question_normalized: str) -> str:
             "last 5",
             "last five",
             "last 10",
+            "last ten",
         )
     ):
         return "history"
@@ -262,6 +268,9 @@ def _fmt(value: Any, digits: int = 3) -> str:
     if isinstance(value, float):
         return f"{value:.{digits}f}"
 
+    if isinstance(value, int):
+        return str(value)
+
     return str(value)
 
 
@@ -273,6 +282,31 @@ def _risk_status(context: Dict[str, Any]) -> str:
         or risk.get("level")
         or "UNKNOWN"
     ).upper()
+
+
+def _risk_score(context: Dict[str, Any]) -> Any:
+    risk = context.get("risk") or {}
+
+    return (
+        risk.get("score")
+        if risk.get("score") is not None
+        else risk.get("risk_score")
+    )
+
+
+def _risk_factors(context: Dict[str, Any]) -> Dict[str, Any]:
+    risk = context.get("risk") or {}
+
+    factors = (
+        risk.get("factors")
+        or risk.get("contributions")
+        or {}
+    )
+
+    if isinstance(factors, dict):
+        return factors
+
+    return {}
 
 
 def _current_machine(context: Dict[str, Any]) -> Dict[str, Any]:
@@ -289,8 +323,12 @@ def _extract_alert_type(question: str) -> str | None:
     mapping = {
         "vibration": "vibration",
         "temperature": "temperature",
-        "pressure": "vacuum",
+
+        # "vacuum" remains accepted as a legacy/user synonym.
+        # Actual telemetry is now chamber pressure.
+        "pressure": "pressure",
         "vacuum": "vacuum",
+
         "drift": "drift",
         "motor": "motor",
         "stage": "stage",
@@ -331,7 +369,6 @@ def _history_answer(
 
     alert_type = _extract_alert_type(q)
 
-    # "last N" support for common small values.
     count = 1
 
     number_match = re.search(
@@ -359,7 +396,7 @@ def _history_answer(
     )
 
     # ---------------------------------------------------------
-    # "Last" style question
+    # Last / when questions
     # ---------------------------------------------------------
 
     if (
@@ -408,12 +445,19 @@ def _history_answer(
                 or "UNKNOWN"
             ).upper()
 
-            raw_timestamp = event.get("timestamp")
+            raw_timestamp = event.get(
+                "timestamp"
+            )
 
             if raw_timestamp is not None:
                 try:
-                    event_time = format_timestamp(float(raw_timestamp))
-                except (TypeError, ValueError):
+                    event_time = format_timestamp(
+                        float(raw_timestamp)
+                    )
+                except (
+                    TypeError,
+                    ValueError,
+                ):
                     event_time = "time unavailable"
             else:
                 event_time = "time unavailable"
@@ -469,7 +513,7 @@ def _history_answer(
         }
 
     # ---------------------------------------------------------
-    # Recent/history question without "last"
+    # Recent / history questions
     # ---------------------------------------------------------
 
     if (
@@ -530,12 +574,18 @@ def _history_answer(
 def _current_state_answer(
     context: Dict[str, Any],
 ) -> Dict[str, Any]:
+
     machine = _current_machine(context)
 
     stage = machine.get("stage") or {}
     temperature = machine.get("temperature") or {}
     vibration = machine.get("vibration") or {}
-    vacuum = machine.get("vacuum") or {}
+
+    # IMPORTANT:
+    # Chamber pressure now comes from machine["pressure"].
+    # It is the real BMP280 reading.
+    pressure = machine.get("pressure") or {}
+
     laser = machine.get("laser") or {}
 
     risk = context.get("risk") or {}
@@ -552,29 +602,33 @@ def _current_state_answer(
             "actions": [],
         }
 
+    score = _risk_score(context)
+
     observations = [
         (
             f"Stage: {stage.get('status', 'UNKNOWN')}, "
-            f"position {_fmt(stage.get('position_mm'))} mm."
+            f"position {_fmt(stage.get('position'))}."
         ),
         (
             f"Drift: {_fmt(laser.get('drift_nm'))} nm."
         ),
         (
-            f"Vibration: {_fmt(vibration.get('acceleration_g'))} g "
+            f"Vibration: "
+            f"{_fmt(vibration.get('acceleration_g'))} g "
             f"({vibration.get('status', 'UNKNOWN')})."
         ),
         (
-            f"Temperature: {_fmt(temperature.get('value_c'), 2)} °C."
+            f"Temperature: "
+            f"{_fmt(temperature.get('value_c'), 2)} °C."
         ),
         (
-            f"Vacuum pressure: "
-            f"{_fmt(vacuum.get('pressure_mbar'), 6)} mbar "
-            f"({vacuum.get('status', 'UNKNOWN')})."
+            f"Chamber pressure: "
+            f"{_fmt(pressure.get('pressure_hpa'), 2)} hPa "
+            f"({pressure.get('status', 'UNKNOWN')})."
         ),
         (
             f"Risk: {_risk_status(context)} "
-            f"(score {_fmt(risk.get('score'), 1)})."
+            f"(score {_fmt(score, 1)})."
         ),
         (
             f"Prediction: "
@@ -601,6 +655,7 @@ def _diagnosis_answer(
     question: str,
     context: Dict[str, Any],
 ) -> Dict[str, Any]:
+
     machine = _current_machine(context)
 
     if not machine.get("available"):
@@ -617,7 +672,10 @@ def _diagnosis_answer(
 
     stage = machine.get("stage") or {}
     vibration = machine.get("vibration") or {}
-    vacuum = machine.get("vacuum") or {}
+
+    # Real BMP280 chamber pressure.
+    pressure_data = machine.get("pressure") or {}
+
     temperature = machine.get("temperature") or {}
     laser = machine.get("laser") or {}
 
@@ -627,7 +685,12 @@ def _diagnosis_answer(
     causes = []
     actions = []
 
+    # ---------------------------------------------------------
+    # Vibration
+    # ---------------------------------------------------------
+
     if "vibration" in q:
+
         vibration_value = vibration.get(
             "acceleration_g"
         )
@@ -641,6 +704,7 @@ def _diagnosis_answer(
             observations.append(
                 "The stage is currently moving."
             )
+
             causes.append(
                 "Mechanical excitation during stage movement "
                 "can contribute to increased vibration."
@@ -665,44 +729,71 @@ def _diagnosis_answer(
             ]
         )
 
+    # ---------------------------------------------------------
+    # Chamber pressure
+    # ---------------------------------------------------------
+
     elif (
         "pressure" in q
         or "vacuum" in q
     ):
-        pressure = vacuum.get(
-            "pressure_mbar"
+
+        pressure = pressure_data.get(
+            "pressure_hpa"
+        )
+
+        status = pressure_data.get(
+            "status",
+            "UNKNOWN",
+        )
+
+        sensor = pressure_data.get(
+            "sensor",
+            "BMP280",
         )
 
         observations.append(
-            f"Current vacuum pressure is "
-            f"{_fmt(pressure, 6)} mbar."
+            f"Current chamber pressure is "
+            f"{_fmt(pressure, 2)} hPa."
         )
 
         observations.append(
-            f"Vacuum status is "
-            f"{vacuum.get('status', 'UNKNOWN')}."
+            f"Pressure source: {sensor}."
+        )
+
+        observations.append(
+            f"Pressure status: {status}."
         )
 
         causes.extend(
             [
-                "A pressure increase can indicate degradation of the vacuum condition.",
-                "Possible contributors include leakage or vacuum-pump performance changes.",
+                "The chamber pressure should be interpreted against "
+                "the calibrated operating range of the chamber.",
+                "A sustained pressure increase relative to the calibrated "
+                "operating range can indicate degradation of chamber conditions.",
+                "Possible contributors include leakage, pump performance, "
+                "or changes in the chamber environment.",
             ]
         )
 
         actions.extend(
             [
-                "Check whether the pressure is continuing to rise.",
-                "Check the vacuum subsystem and pump condition.",
-                "Inspect for possible leakage if the pressure trend remains abnormal.",
+                "Check whether the chamber pressure is continuing to change.",
+                "Compare the pressure with the calibrated chamber operating range.",
+                "Inspect the chamber, seals, and vacuum equipment if the pressure trend remains abnormal.",
             ]
         )
+
+    # ---------------------------------------------------------
+    # Temperature
+    # ---------------------------------------------------------
 
     elif (
         "temperature" in q
         or "thermal" in q
         or "heat" in q
     ):
+
         value = temperature.get(
             "value_c"
         )
@@ -725,7 +816,12 @@ def _diagnosis_answer(
             ]
         )
 
+    # ---------------------------------------------------------
+    # Drift
+    # ---------------------------------------------------------
+
     elif "drift" in q:
+
         drift = laser.get(
             "drift_nm"
         )
@@ -764,7 +860,12 @@ def _diagnosis_answer(
             ]
         )
 
+    # ---------------------------------------------------------
+    # Risk
+    # ---------------------------------------------------------
+
     elif "risk" in q:
+
         risk = context.get("risk") or {}
 
         observations.append(
@@ -772,14 +873,18 @@ def _diagnosis_answer(
             f"{_risk_status(context)}."
         )
 
+        score = _risk_score(context)
+
         observations.append(
             f"Current risk score is "
-            f"{_fmt(risk.get('score'), 1)}."
+            f"{_fmt(score, 1)}."
         )
 
         causes.append(
             "The risk score combines monitored vibration, drift, "
-            "temperature, and vacuum conditions."
+            "and temperature. Chamber pressure is displayed from "
+            "the real BMP280 reading but is not assigned an arbitrary "
+            "risk threshold without a calibrated chamber reference."
         )
 
         actions.append(
@@ -787,18 +892,24 @@ def _diagnosis_answer(
             "rather than relying only on the overall risk score."
         )
 
+    # ---------------------------------------------------------
+    # General diagnosis
+    # ---------------------------------------------------------
+
     else:
+
         observations.append(
             "The question does not identify a specific subsystem."
         )
 
         observations.append(
-            f"Current risk level is {_risk_status(context)}."
+            f"Current risk level is "
+            f"{_risk_status(context)}."
         )
 
         causes.append(
             "NanoPredict can analyze stage, drift, vibration, "
-            "temperature, vacuum, risk, and prediction data."
+            "temperature, chamber pressure, risk, and prediction data."
         )
 
         actions.append(
@@ -824,7 +935,10 @@ def _diagnosis_answer(
 def _prediction_answer(
     context: Dict[str, Any],
 ) -> Dict[str, Any]:
-    prediction = context.get("prediction") or {}
+
+    prediction = context.get(
+        "prediction"
+    ) or {}
 
     condition = prediction.get(
         "condition",
@@ -841,7 +955,8 @@ def _prediction_answer(
 
     if confidence is not None:
         observations.append(
-            f"Prediction confidence: {_fmt(confidence, 2)}."
+            f"Prediction confidence: "
+            f"{_fmt(confidence, 2)}."
         )
 
     warnings = prediction.get(
@@ -876,6 +991,7 @@ def _action_answer(
     question: str,
     context: Dict[str, Any],
 ) -> Dict[str, Any]:
+
     machine = _current_machine(context)
 
     if not machine.get("available"):
@@ -891,7 +1007,9 @@ def _action_answer(
             ],
         }
 
-    risk_status = _risk_status(context)
+    risk_status = _risk_status(
+        context
+    )
 
     actions = [
         "Check the current alert list and identify the affected subsystem.",
@@ -914,12 +1032,20 @@ def _action_answer(
     }
 
 
+# ---------------------------------------------------------------------------
+# Risk
+# ---------------------------------------------------------------------------
+
 def _risk_answer(
     context: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Explain the current machine risk using the calculated risk state."""
+    """
+    Explain the current machine risk using the calculated risk state.
+    """
 
-    risk = context.get("risk") or {}
+    risk = context.get(
+        "risk"
+    ) or {}
 
     level = str(
         risk.get("status")
@@ -927,14 +1053,18 @@ def _risk_answer(
         or "UNKNOWN"
     ).upper()
 
-    score = risk.get("score")
+    score = _risk_score(
+        context
+    )
 
     health = str(
         risk.get("health")
         or "UNKNOWN"
     ).upper()
 
-    contributions = risk.get("contributions") or {}
+    contributions = _risk_factors(
+        context
+    )
 
     observations = [
         f"Current risk level: {level}.",
@@ -951,15 +1081,32 @@ def _risk_answer(
 
     causes = []
 
-    contribution_items = sorted(
-        contributions.items(),
-        key=lambda item: float(item[1]),
+    contribution_items = []
+
+    for subsystem, value in contributions.items():
+        try:
+            numeric_value = float(value)
+        except (
+            TypeError,
+            ValueError,
+        ):
+            continue
+
+        contribution_items.append(
+            (
+                subsystem,
+                numeric_value,
+            )
+        )
+
+    contribution_items.sort(
+        key=lambda item: item[1],
         reverse=True,
     )
 
     for subsystem, value in contribution_items[:3]:
         causes.append(
-            f"{subsystem.capitalize()} risk contribution: "
+            f"{str(subsystem).capitalize()} risk contribution: "
             f"{_fmt(value, 1)}."
         )
 
@@ -971,18 +1118,27 @@ def _risk_answer(
     actions = []
 
     if level == "CRITICAL":
-        actions.extend([
-            "Check the active critical alerts immediately.",
-            "Verify the affected physical subsystem before continuing operation.",
-            "Monitor the telemetry until the risk condition is resolved.",
-        ])
+
+        actions.extend(
+            [
+                "Check the active critical alerts immediately.",
+                "Verify the affected physical subsystem before continuing operation.",
+                "Monitor the telemetry until the risk condition is resolved.",
+            ]
+        )
+
     elif level == "WARNING":
-        actions.extend([
-            "Check the active warnings and identify the affected subsystem.",
-            "Compare the contributing telemetry values with their recent trends.",
-            "Continue monitoring for escalation toward CRITICAL.",
-        ])
+
+        actions.extend(
+            [
+                "Check the active warnings and identify the affected subsystem.",
+                "Compare the contributing telemetry values with their recent trends.",
+                "Continue monitoring for escalation toward CRITICAL.",
+            ]
+        )
+
     else:
+
         actions.append(
             "Continue monitoring the telemetry and recent trends."
         )
@@ -1007,7 +1163,9 @@ def _risk_answer(
 # Main answer function
 # ---------------------------------------------------------------------------
 
-def answer_question(question: str) -> Dict[str, Any]:
+def answer_question(
+    question: str,
+) -> Dict[str, Any]:
     """
     Main synchronous assistant entry point.
 
@@ -1023,7 +1181,9 @@ def answer_question(question: str) -> Dict[str, Any]:
             "question": question,
             "normalized_question": normalized,
             "intent": "general",
-            "answer": "Please enter a question about NanoPredict.",
+            "answer": (
+                "Please enter a question about NanoPredict."
+            ),
             "observations": [],
             "causes": [],
             "actions": [],
@@ -1039,7 +1199,10 @@ def answer_question(question: str) -> Dict[str, Any]:
     )
 
     if intent == "time":
-        time_data = context["current_time"]
+
+        time_data = context[
+            "current_time"
+        ]
 
         result = {
             "answer": (
@@ -1054,39 +1217,46 @@ def answer_question(question: str) -> Dict[str, Any]:
         }
 
     elif intent == "history":
+
         result = _history_answer(
             normalized,
             context,
         )
 
     elif intent == "current_state":
+
         result = _current_state_answer(
             context,
         )
 
     elif intent == "risk":
+
         result = _risk_answer(
             context,
         )
 
     elif intent == "diagnosis":
+
         result = _diagnosis_answer(
             normalized,
             context,
         )
 
     elif intent == "prediction":
+
         result = _prediction_answer(
             context,
         )
 
     elif intent == "action":
+
         result = _action_answer(
             normalized,
             context,
         )
 
     else:
+
         result = _current_state_answer(
             context,
         )

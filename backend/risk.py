@@ -2,135 +2,241 @@ def calculate_risk(telemetry):
     vibration = telemetry["vibration"]["acceleration_g"]
     drift_nm = abs(telemetry["laser"]["drift_nm"])
     temperature = telemetry["environment"]["temperature_c"]
-    vacuum = telemetry["vacuum"]["pressure_mbar"]
 
-    vibration_risk = min(100, max(0, (vibration - 0.10) / 0.30 * 100))
-    drift_risk = min(100, max(0, drift_nm / 5.0 * 100))
-    temperature_risk = min(100, max(0, abs(temperature - 25.0) / 10.0 * 100))
-    vacuum_risk = min(100, max(0, (vacuum - 0.0001) / 0.0005 * 100))
+    # Real BMP280 chamber pressure.
+    # Do not compare against atmospheric pressure unless a calibrated
+    # chamber reference/setpoint has been defined.
+    pressure_hpa = telemetry["environment"].get("pressure_hpa")
 
-    risk_score = (
-        vibration_risk * 0.30 +
-        drift_risk * 0.40 +
-        temperature_risk * 0.10 +
-        vacuum_risk * 0.20
+    # ---------------------------------------------------------
+    # Vibration risk
+    # ---------------------------------------------------------
+
+    vibration_risk = min(
+        100,
+        max(
+            0,
+            (vibration - 0.10) / 0.30 * 100
+        )
     )
 
-    risk_score = round(min(100, max(0, risk_score)), 2)
+    # ---------------------------------------------------------
+    # Drift risk
+    # ---------------------------------------------------------
 
-    if risk_score < 35:
-        level = "NORMAL"
-    elif risk_score < 70:
-        level = "WARNING"
-    else:
+    drift_risk = min(
+        100,
+        max(
+            0,
+            drift_nm / 5.0 * 100
+        )
+    )
+
+    # ---------------------------------------------------------
+    # Temperature risk
+    # ---------------------------------------------------------
+
+    temperature_risk = min(
+        100,
+        max(
+            0,
+            abs(temperature - 25.0) / 10.0 * 100
+        )
+    )
+
+    # ---------------------------------------------------------
+    # Pressure risk
+    # ---------------------------------------------------------
+    #
+    # We have a REAL pressure measurement, but without a calibrated
+    # chamber operating setpoint we must not invent a pressure risk.
+    #
+
+    pressure_risk = 0.0
+
+    # ---------------------------------------------------------
+    # Overall risk
+    # ---------------------------------------------------------
+
+    risk_score = (
+        vibration_risk * 0.35 +
+        drift_risk * 0.40 +
+        temperature_risk * 0.15 +
+        pressure_risk * 0.10
+    )
+
+    risk_score = min(
+        100,
+        max(
+            0,
+            risk_score
+        )
+    )
+
+    # ---------------------------------------------------------
+    # Risk level
+    # ---------------------------------------------------------
+
+    if risk_score >= 70:
         level = "CRITICAL"
 
+    elif risk_score >= 40:
+        level = "WARNING"
+
+    else:
+        level = "NORMAL"
+
     return {
-        "risk_score": risk_score,
+        "risk_score": round(
+            risk_score,
+            2
+        ),
+
         "level": level,
+
         "factors": {
-            "vibration": round(vibration_risk, 2),
-            "displacement": round(drift_risk, 2),
-            "temperature": round(temperature_risk, 2),
-            "vacuum": round(vacuum_risk, 2)
+            "vibration": round(
+                vibration_risk,
+                2
+            ),
+
+            "drift": round(
+                drift_risk,
+                2
+            ),
+
+            "temperature": round(
+                temperature_risk,
+                2
+            ),
+
+            "pressure": round(
+                pressure_risk,
+                2
+            )
+        },
+
+        "measurements": {
+            "temperature_c": round(
+                temperature,
+                2
+            ),
+
+            "vibration_g": round(
+                vibration,
+                4
+            ),
+
+            "drift_nm": round(
+                drift_nm,
+                3
+            ),
+
+            "pressure_hpa": (
+                round(
+                    pressure_hpa,
+                    2
+                )
+                if pressure_hpa is not None
+                else None
+            )
         }
     }
 
 
-def generate_alerts(telemetry, risk):
+def generate_alerts(telemetry):
     alerts = []
 
     vibration = telemetry["vibration"]["acceleration_g"]
     drift_nm = abs(telemetry["laser"]["drift_nm"])
     temperature = telemetry["environment"]["temperature_c"]
-    vacuum = telemetry["vacuum"]["pressure_mbar"]
+    pressure_hpa = telemetry["environment"].get("pressure_hpa")
 
-    # Vacuum
-    if vacuum >= 0.0004:
-        alerts.append({
-            "id": "vacuum-critical",
-            "type": "vacuum",
-            "severity": "critical",
-            "title": "Vacuum Pressure Critical",
-            "message": f"Chamber pressure is elevated at {vacuum:.7f} mbar.",
-            "value": vacuum,
-            "unit": "mbar"
-        })
-    elif vacuum >= 0.00025:
-        alerts.append({
-            "id": "vacuum-warning",
-            "type": "vacuum",
-            "severity": "warning",
-            "title": "Vacuum Pressure Warning",
-            "message": f"Chamber pressure is rising at {vacuum:.7f} mbar.",
-            "value": vacuum,
-            "unit": "mbar"
-        })
-
+    # ---------------------------------------------------------
     # Vibration
-    if vibration >= 0.60:
+    # ---------------------------------------------------------
+
+    if vibration >= 0.90:
         alerts.append({
-            "id": "vibration-critical",
-            "type": "vibration",
-            "severity": "critical",
-            "title": "High Vibration Detected",
-            "message": f"Stage vibration is {vibration:.3f} g.",
-            "value": vibration,
-            "unit": "g"
-        })
-    elif vibration >= 0.35:
-        alerts.append({
-            "id": "vibration-warning",
-            "type": "vibration",
-            "severity": "warning",
-            "title": "Vibration Increasing",
-            "message": f"Stage vibration is elevated at {vibration:.3f} g.",
-            "value": vibration,
-            "unit": "g"
+            "type": "critical",
+            "title": "High Vibration",
+            "message": (
+                f"Vibration level is {vibration:.3f} g."
+            ),
+            "value": vibration
         })
 
+    elif vibration >= 0.80:
+        alerts.append({
+            "type": "warning",
+            "title": "Elevated Vibration",
+            "message": (
+                f"Vibration level is {vibration:.3f} g."
+            ),
+            "value": vibration
+        })
+
+    # ---------------------------------------------------------
+    # Laser drift
+    # ---------------------------------------------------------
+
+    if drift_nm >= 5.0:
+        alerts.append({
+            "type": "critical",
+            "title": "Sub-Nanometer Drift Anomaly",
+            "message": (
+                f"Measured drift is {drift_nm:.3f} nm."
+            ),
+            "value": drift_nm
+        })
+
+    elif drift_nm >= 3.0:
+        alerts.append({
+            "type": "warning",
+            "title": "Elevated Laser Drift",
+            "message": (
+                f"Measured drift is {drift_nm:.3f} nm."
+            ),
+            "value": drift_nm
+        })
+
+    # ---------------------------------------------------------
     # Temperature
-    if temperature >= 35:
+    # ---------------------------------------------------------
+
+    if temperature >= 38.0:
         alerts.append({
-            "id": "temperature-critical",
-            "type": "temperature",
-            "severity": "critical",
-            "title": "Temperature Critical",
-            "message": f"Equipment temperature is {temperature:.2f} °C.",
-            "value": temperature,
-            "unit": "°C"
-        })
-    elif temperature >= 30:
-        alerts.append({
-            "id": "temperature-warning",
-            "type": "temperature",
-            "severity": "warning",
-            "title": "Temperature Elevated",
-            "message": f"Equipment temperature is {temperature:.2f} °C.",
-            "value": temperature,
-            "unit": "°C"
+            "type": "critical",
+            "title": "High Temperature",
+            "message": (
+                f"Temperature is {temperature:.2f} °C."
+            ),
+            "value": temperature
         })
 
-    # Position drift
-    if drift_nm >= 3:
+    elif temperature >= 35.0:
         alerts.append({
-            "id": "drift-critical",
-            "type": "drift",
-            "severity": "critical",
-            "title": "Position Drift Critical",
-            "message": f"Measured stage drift is {drift_nm:.3f} nm.",
-            "value": drift_nm,
-            "unit": "nm"
+            "type": "warning",
+            "title": "Elevated Temperature",
+            "message": (
+                f"Temperature is {temperature:.2f} °C."
+            ),
+            "value": temperature
         })
-    elif drift_nm >= 1:
-        alerts.append({
-            "id": "drift-warning",
-            "type": "drift",
-            "severity": "warning",
-            "title": "Position Drift Increasing",
-            "message": f"Measured stage drift is {drift_nm:.3f} nm.",
-            "value": drift_nm,
-            "unit": "nm"
-        })
+
+    # ---------------------------------------------------------
+    # Chamber pressure
+    # ---------------------------------------------------------
+    #
+    # IMPORTANT:
+    # BMP280 gives us the REAL chamber pressure.
+    #
+    # We display/store it, but we do not generate an alert from
+    # the absolute value until a calibrated chamber reference
+    # pressure is provided.
+    #
+
+    if pressure_hpa is not None:
+        pass
 
     return alerts

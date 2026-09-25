@@ -11,13 +11,19 @@ from .state import latest_state
 
 
 APP_TIMEZONE = ZoneInfo(
-    os.getenv("NANOPREDICT_TIMEZONE", "Asia/Kolkata")
+    os.getenv(
+        "NANOPREDICT_TIMEZONE",
+        "Asia/Kolkata"
+    )
 )
 
 
-def format_timestamp(timestamp: float | None) -> str | None:
+def format_timestamp(
+    timestamp: float | None
+) -> str | None:
     """
-    Convert a Unix timestamp into the configured NanoPredict timezone.
+    Convert a Unix timestamp into the configured
+    NanoPredict timezone.
     """
 
     if timestamp is None:
@@ -35,22 +41,32 @@ def format_timestamp(timestamp: float | None) -> str | None:
 
 def current_time_context() -> Dict[str, Any]:
     """
-    Return the current server time in both UTC and configured local time.
+    Return the current server time in both UTC
+    and configured local time.
     """
 
     now = datetime.now(timezone.utc)
-    local_now = now.astimezone(APP_TIMEZONE)
+
+    local_now = now.astimezone(
+        APP_TIMEZONE
+    )
 
     return {
         "epoch": now.timestamp(),
+
         "iso_utc": now.isoformat(),
+
         "display": local_now.strftime(
             "%Y-%m-%d %H:%M:%S %Z"
         ),
+
         "date": local_now.strftime(
             "%Y-%m-%d"
         ),
-        "timezone": str(APP_TIMEZONE),
+
+        "timezone": str(
+            APP_TIMEZONE
+        ),
     }
 
 
@@ -59,21 +75,36 @@ def build_context(
     history_limit: int = 10,
 ) -> Dict[str, Any]:
     """
-    Build the complete grounded context used by the AI assistant.
+    Build the complete grounded context used
+    by the AI assistant.
 
-    This function only reads application state, event history, and the
-    static knowledge base. It does not generate or modify machine data.
+    This function only reads application state,
+    event history, and the static knowledge base.
+    It does not generate or modify machine data.
     """
 
     state = latest_state.snapshot()
 
-    telemetry = state.get("telemetry")
-    risk = state.get("risk")
-    alerts = state.get("alerts") or []
-    prediction = state.get("prediction")
+    telemetry = state.get(
+        "telemetry"
+    )
 
-    recent_events = event_store.get_recent_events(
-        limit=history_limit
+    risk = state.get(
+        "risk"
+    )
+
+    alerts = state.get(
+        "alerts"
+    ) or []
+
+    prediction = state.get(
+        "prediction"
+    )
+
+    recent_events = (
+        event_store.get_recent_events(
+            limit=history_limit
+        )
     )
 
     knowledge = retrieve_relevant_knowledge(
@@ -81,80 +112,199 @@ def build_context(
         limit=4,
     )
 
+    # ---------------------------------------------------------
+    # Machine context
+    # ---------------------------------------------------------
+
     machine_context: Dict[str, Any] = {
         "available": telemetry is not None,
+
         "stage": {},
+
         "temperature": {},
+
         "vibration": {},
-        "vacuum": {},
+
+        "pressure": {},
+
         "laser": {},
     }
 
     if telemetry:
-        motor = telemetry.get("motor") or {}
-        environment = telemetry.get("environment") or {}
-        vibration = telemetry.get("vibration") or {}
-        vacuum = telemetry.get("vacuum") or {}
-        laser = telemetry.get("laser") or {}
+
+        motor = telemetry.get(
+            "motor"
+        ) or {}
+
+        environment = telemetry.get(
+            "environment"
+        ) or {}
+
+        vibration = telemetry.get(
+            "vibration"
+        ) or {}
+
+        laser = telemetry.get(
+            "laser"
+        ) or {}
+
+        # -----------------------------------------------------
+        # Stage / motor
+        # -----------------------------------------------------
 
         machine_context["stage"] = {
-            "position_mm": motor.get("position"),
-            "target_position_mm": motor.get(
+            "position": motor.get(
+                "position"
+            ),
+
+            "target_position": motor.get(
                 "target_position"
             ),
+
             "speed_mm_per_sec": motor.get(
                 "speed_mm_per_sec"
             ),
-            "speed_rpm": motor.get("speed_rpm"),
-            "status": motor.get("status"),
-            "moving": motor.get("status") == "RUNNING",
+
+            "speed_rpm": motor.get(
+                "speed_rpm"
+            ),
+
+            "status": motor.get(
+                "status"
+            ),
+
+            "moving": (
+                motor.get("status")
+                == "RUNNING"
+            ),
+
+            "step_count": motor.get(
+                "step_count"
+            ),
+
+            "position_steps": motor.get(
+                "position_steps"
+            ),
         }
+
+        # -----------------------------------------------------
+        # Temperature / humidity
+        # -----------------------------------------------------
 
         machine_context["temperature"] = {
             "value_c": environment.get(
                 "temperature_c"
             ),
+
             "humidity_percent": environment.get(
                 "humidity_percent"
             ),
         }
 
+        # -----------------------------------------------------
+        # Vibration
+        # -----------------------------------------------------
+
         machine_context["vibration"] = {
             "acceleration_g": vibration.get(
                 "acceleration_g"
             ),
-            "status": vibration.get("status"),
+
+            "status": vibration.get(
+                "status"
+            ),
         }
 
-        machine_context["vacuum"] = {
-            "pressure_mbar": vacuum.get(
-                "pressure_mbar"
+        # -----------------------------------------------------
+        # REAL BMP280 CHAMBER PRESSURE
+        # -----------------------------------------------------
+        #
+        # IMPORTANT:
+        # pressure_hpa comes directly from:
+        #
+        # Raspberry Pi
+        #      ↓
+        # BMP280
+        #      ↓
+        # environment.pressure_hpa
+        #
+        # It is NOT a separate vacuum sensor.
+        #
+
+        machine_context["pressure"] = {
+            "pressure_hpa": environment.get(
+                "pressure_hpa"
             ),
-            "status": vacuum.get("status"),
+
+            "status": (
+                "REAL"
+                if environment.get(
+                    "pressure_hpa"
+                ) is not None
+                else "UNAVAILABLE"
+            ),
+
+            "sensor": "BMP280",
         }
+
+        # -----------------------------------------------------
+        # Laser
+        # -----------------------------------------------------
 
         machine_context["laser"] = {
             "displacement_mm": laser.get(
                 "displacement_mm"
             ),
-            "drift_nm": laser.get("drift_nm"),
+
+            "drift_nm": laser.get(
+                "drift_nm"
+            ),
         }
+
+    # ---------------------------------------------------------
+    # Event formatting
+    # ---------------------------------------------------------
 
     formatted_events = []
 
     for event in recent_events:
+
         formatted_events.append(
             {
-                "type": event.get("type"),
-                "severity": event.get("severity"),
-                "message": event.get("message"),
-                "timestamp": event.get("timestamp"),
-                "time": format_timestamp(
-                    event.get("timestamp")
+                "type": event.get(
+                    "type"
                 ),
-                "data": event.get("data") or {},
+
+                "severity": event.get(
+                    "severity"
+                ),
+
+                "message": event.get(
+                    "message"
+                ),
+
+                "timestamp": event.get(
+                    "timestamp"
+                ),
+
+                "time": format_timestamp(
+                    event.get(
+                        "timestamp"
+                    )
+                ),
+
+                "data": (
+                    event.get(
+                        "data"
+                    )
+                    or {}
+                ),
             }
         )
+
+    # ---------------------------------------------------------
+    # Final AI context
+    # ---------------------------------------------------------
 
     return {
         "current_time": current_time_context(),
@@ -169,19 +319,29 @@ def build_context(
 
         "recent_events": formatted_events,
 
-        "event_history_started_at": event_store.started_at,
-
-        "event_history_started": format_timestamp(
+        "event_history_started_at": (
             event_store.started_at
+        ),
+
+        "event_history_started": (
+            format_timestamp(
+                event_store.started_at
+            )
         ),
 
         "knowledge": knowledge,
 
-        "state_updated_at": state.get(
-            "updated_at"
+        "state_updated_at": (
+            state.get(
+                "updated_at"
+            )
         ),
 
-        "state_updated": format_timestamp(
-            state.get("updated_at")
+        "state_updated": (
+            format_timestamp(
+                state.get(
+                    "updated_at"
+                )
+            )
         ),
     }
