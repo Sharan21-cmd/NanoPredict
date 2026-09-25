@@ -4,6 +4,7 @@ import json
 from fastapi import WebSocket
 
 from telemetry import telemetry_engine, generate_from_hardware
+from hardware import send_hardware_command
 from risk import calculate_risk, generate_alerts
 from prediction import prediction_engine
 from ai.state import latest_state
@@ -77,6 +78,11 @@ async def handle_command(message: str):
 
             if speed is not None:
                 telemetry_engine.set_motor_speed(speed)
+
+                await send_hardware_command({
+                    "command": "set_motor_speed",
+                    "speed_mm_per_sec": speed
+                })
 
                 print(
                     f"[Command] Motor speed → "
