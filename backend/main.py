@@ -1,5 +1,5 @@
 import asyncio
-
+from hardware import hardware_telemetry
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -133,3 +133,29 @@ async def websocket_endpoint(
         print(f"[WebSocket] ERROR: {e}")
 
         manager.disconnect(websocket)
+@app.websocket("/ws/hardware")
+async def hardware_websocket_endpoint(websocket: WebSocket):
+
+    await websocket.accept()
+
+    print("[Hardware] Raspberry Pi connected")
+
+    try:
+
+        while True:
+
+            data = await websocket.receive_json()
+
+            if not isinstance(data, dict):
+                print("[Hardware] Invalid packet received")
+                continue
+
+            hardware_telemetry.update(data)
+
+    except WebSocketDisconnect:
+
+        print("[Hardware] Raspberry Pi disconnected")
+
+    except Exception as e:
+
+        print(f"[Hardware] ERROR: {e}")
