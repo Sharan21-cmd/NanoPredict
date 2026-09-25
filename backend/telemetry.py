@@ -251,12 +251,14 @@ def generate_from_hardware():
         "source": "raspberry_pi",
 
         "motor": {
-            "position": 0.0,
-            "target_position": 0.0,
+            "position": float(motor_data.get("position_steps", 0.0)),
+            "target_position": float(motor_data.get("position_steps", 0.0)),
             "speed_rpm": 0.0,
             "speed_mm_per_sec": 0.0,
             "current_a": 0.0,
-            "status": motor_data.get("status", "UNKNOWN")
+            "status": motor_data.get("status", "UNKNOWN"),
+            "step_count": int(motor_data.get("step_count", 0)),
+            "position_steps": int(motor_data.get("position_steps", 0))
         },
 
         "laser": {
