@@ -1,4 +1,10 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from 'react'
 
 const TelemetryContext = createContext(null)
 
@@ -7,18 +13,39 @@ const API_BASE_URL =
 
 const WS_BASE_URL = API_BASE_URL.replace(/^http/, 'ws')
 
-function mapBackendTelemetry(packet) {
+function mapBackendTelemetry(packet, selectedMotorSpeed) {
   const data = packet.telemetry
   const risk = packet.risk
 
   return {
     stage: {
       positionMm: data.motor.position,
-      positionSteps: Number(data.motor.position_steps ?? data.motor.step_count ?? 0),
-      stepCount: Number(data.motor.step_count ?? data.motor.position_steps ?? 0),
-      targetPositionMm: data.motor.target_position ?? data.motor.position,
-      moving: String(data.motor?.status ?? '').toUpperCase() === 'RUNNING',
-      speedMmPerSec: data.motor.speed_mm_per_sec ?? data.motor.speed_rpm,
+
+      positionSteps: Number(
+        data.motor.position_steps ??
+        data.motor.step_count ??
+        0
+      ),
+
+      stepCount: Number(
+        data.motor.step_count ??
+        data.motor.position_steps ??
+        0
+      ),
+
+      targetPositionMm:
+        data.motor.target_position ??
+        data.motor.position,
+
+      moving:
+        String(
+          data.motor?.status ?? ''
+        ).toUpperCase() === 'RUNNING',
+
+      // IMPORTANT:
+      // Keep the speed selected by the user.
+      // Do not overwrite it with Pi telemetry.
+      speedMmPerSec: selectedMotorSpeed,
     },
 
     temperature: {
@@ -26,7 +53,8 @@ function mapBackendTelemetry(packet) {
     },
 
     environment: {
-      pressureHpa: data.environment.pressure_hpa ?? null,
+      pressureHpa:
+        data.environment.pressure_hpa ?? null,
     },
 
     vibration: {
@@ -34,49 +62,79 @@ function mapBackendTelemetry(packet) {
     },
 
     vacuum: {
-      pressurePa: data.vacuum.pressure_mbar * 100,
+      pressurePa:
+        data.vacuum.pressure_mbar * 100,
     },
 
     distance: {
-      valueMm: data.laser.displacement_mm,
-      driftNm: data.laser.drift_nm,
+      valueMm:
+        data.laser.displacement_mm,
+
+      driftNm:
+        data.laser.drift_nm,
     },
 
     risk: {
       riskScore: risk.risk_score,
-      health: Math.max(0, 100 - risk.risk_score),
-      status: risk.level.toLowerCase(),
+
+      health: Math.max(
+        0,
+        100 - risk.risk_score
+      ),
+
+      status:
+        risk.level.toLowerCase(),
 
       contributions: {
-        temperature: risk.factors.temperature,
-        vibration: risk.factors.vibration,
-        vacuum: risk.factors.vacuum,
-        displacement: risk.factors.displacement,
+        temperature:
+          risk.factors.temperature,
+
+        vibration:
+          risk.factors.vibration,
+
+        vacuum:
+          risk.factors.vacuum,
+
+        displacement:
+          risk.factors.displacement,
       },
     },
 
-    alerts: packet.alerts ?? [],
+    alerts:
+      packet.alerts ?? [],
 
-    prediction: packet.prediction ?? {
-      condition: 'SYSTEM STABLE',
-      confidence: 0,
-      warnings: [],
-      trends: {
-        drift_nm: 0,
-        vibration_g: 0,
-        temperature_c: 0,
-        vacuum_mbar: 0,
+    prediction:
+      packet.prediction ?? {
+        condition: 'SYSTEM STABLE',
+
+        confidence: 0,
+
+        warnings: [],
+
+        trends: {
+          drift_nm: 0,
+          vibration_g: 0,
+          temperature_c: 0,
+          vacuum_mbar: 0,
+        },
+
+        history_samples: 0,
       },
-      history_samples: 0,
-    },
   }
 }
 
 const initialTelemetry = {
   stage: {
     positionMm: 0,
+
+    positionSteps: 0,
+
+    stepCount: 0,
+
     targetPositionMm: 0,
+
     moving: false,
+
     speedMmPerSec: 10,
   },
 
@@ -98,12 +156,15 @@ const initialTelemetry = {
 
   distance: {
     valueMm: 0,
+
     driftNm: 0,
   },
 
   risk: {
     riskScore: 0,
+
     health: 100,
+
     status: 'normal',
 
     contributions: {
@@ -118,21 +179,43 @@ const initialTelemetry = {
 
   prediction: {
     condition: 'SYSTEM STABLE',
+
     confidence: 0,
+
     warnings: [],
+
     trends: {
       drift_nm: 0,
       vibration_g: 0,
       temperature_c: 0,
       vacuum_mbar: 0,
     },
+
     history_samples: 0,
   },
 }
 
 export function TelemetryProvider({ children }) {
-  const [telemetry, setTelemetry] = useState(initialTelemetry)
-  const [connected, setConnected] = useState(false)
+  const [telemetry, setTelemetry] =
+    useState(initialTelemetry)
+
+  const [connected, setConnected] =
+    useState(false)
+
+  // Shared motor-speed state.
+  // This survives navigation because TelemetryProvider
+  // remains mounted while changing pages.
+  const [selectedMotorSpeed, setSelectedMotorSpeed] =
+    useState(
+      initialTelemetry.stage.speedMmPerSec
+    )
+
+  // Ref keeps the latest speed available to the
+  // WebSocket callback without recreating the socket.
+  const selectedMotorSpeedRef =
+    useRef(
+      initialTelemetry.stage.speedMmPerSec
+    )
 
   const socketRef = useRef(null)
 
@@ -144,33 +227,55 @@ export function TelemetryProvider({ children }) {
     function connect() {
       if (stopped) return
 
-      const token = sessionStorage.getItem('nanopredict_token')
+      const token =
+        sessionStorage.getItem(
+          'nanopredict_token'
+        )
 
       if (!token) {
-        console.warn('[NanoPredict] No authentication token found')
+        console.warn(
+          '[NanoPredict] No authentication token found'
+        )
+
         setConnected(false)
+
         return
       }
 
-      console.log('[NanoPredict] Connecting to backend...')
+      console.log(
+        '[NanoPredict] Connecting to backend...'
+      )
 
       socket = new WebSocket(
-        `${WS_BASE_URL}/ws/telemetry?token=${encodeURIComponent(token)}`
+        `${WS_BASE_URL}/ws/telemetry?token=${encodeURIComponent(
+          token
+        )}`
       )
 
       socketRef.current = socket
 
       socket.onopen = () => {
-        console.log('[NanoPredict] Backend WebSocket connected')
+        console.log(
+          '[NanoPredict] Backend WebSocket connected'
+        )
+
         setConnected(true)
       }
 
       socket.onmessage = (event) => {
         try {
-          const packet = JSON.parse(event.data)
+          const packet =
+            JSON.parse(event.data)
 
-          if (packet.type === 'telemetry') {
-            setTelemetry(mapBackendTelemetry(packet))
+          if (
+            packet.type === 'telemetry'
+          ) {
+            setTelemetry(
+              mapBackendTelemetry(
+                packet,
+                selectedMotorSpeedRef.current
+              )
+            )
           }
         } catch (error) {
           console.error(
@@ -188,14 +293,17 @@ export function TelemetryProvider({ children }) {
 
         setConnected(false)
 
-        if (socketRef.current === socket) {
+        if (
+          socketRef.current === socket
+        ) {
           socketRef.current = null
         }
 
         if (!stopped) {
-          reconnectTimer = setTimeout(() => {
-            connect()
-          }, 2000)
+          reconnectTimer =
+            setTimeout(() => {
+              connect()
+            }, 2000)
         }
       }
 
@@ -225,26 +333,37 @@ export function TelemetryProvider({ children }) {
   }, [])
 
   function sendCommand(command) {
-    const socket = socketRef.current
+    const socket =
+      socketRef.current
 
     if (!socket) {
       console.warn(
         '[NanoPredict] Cannot send command: WebSocket unavailable'
       )
+
       return
     }
 
-    if (socket.readyState !== WebSocket.OPEN) {
+    if (
+      socket.readyState !==
+      WebSocket.OPEN
+    ) {
       console.warn(
         '[NanoPredict] Cannot send command: WebSocket not open'
       )
+
       return
     }
 
     try {
-      socket.send(JSON.stringify(command))
+      socket.send(
+        JSON.stringify(command)
+      )
 
-      console.log('[NanoPredict] Command sent:', command)
+      console.log(
+        '[NanoPredict] Command sent:',
+        command
+      )
     } catch (error) {
       console.error(
         '[NanoPredict] Command send error:',
@@ -256,7 +375,9 @@ export function TelemetryProvider({ children }) {
   function setTargetPosition(positionMm) {
     sendCommand({
       type: 'set_target_position',
-      position_mm: Number(positionMm),
+
+      position_mm:
+        Number(positionMm),
     })
   }
 
@@ -267,15 +388,40 @@ export function TelemetryProvider({ children }) {
   }
 
   function setMotorSpeed(speedMmPerSec) {
+    const speed =
+      Number(speedMmPerSec)
+
+    // Update shared state immediately.
+    setSelectedMotorSpeed(speed)
+
+    // Update ref immediately so the next
+    // telemetry packet cannot overwrite it.
+    selectedMotorSpeedRef.current =
+      speed
+
+    // Send command to backend.
     sendCommand({
       type: 'set_motor_speed',
-      speed_mm_per_sec: Number(speedMmPerSec),
+
+      speed_mm_per_sec: speed,
     })
+
+    // Also immediately update displayed telemetry.
+    setTelemetry((previous) => ({
+      ...previous,
+
+      stage: {
+        ...previous.stage,
+
+        speedMmPerSec: speed,
+      },
+    }))
   }
 
   function setTemperatureMode(mode) {
     sendCommand({
       type: 'set_temperature_mode',
+
       mode,
     })
   }
@@ -283,6 +429,7 @@ export function TelemetryProvider({ children }) {
   function setVibrationMode(mode) {
     sendCommand({
       type: 'set_vibration_mode',
+
       mode,
     })
   }
@@ -290,6 +437,7 @@ export function TelemetryProvider({ children }) {
   function setVacuumMode(mode) {
     sendCommand({
       type: 'set_vacuum_mode',
+
       mode,
     })
   }
@@ -302,22 +450,46 @@ export function TelemetryProvider({ children }) {
 
   const value = {
     telemetry,
+
     connected,
+
     setTargetPosition,
+
     stopMotor,
+
     setMotorSpeed,
+
     setTemperatureMode,
+
     setVibrationMode,
+
     setVacuumMode,
+
     normalizeSensors,
+
     sendCommand,
   }
 
   return (
-    <TelemetryContext.Provider value={value}>
+    <TelemetryContext.Provider
+      value={value}
+    >
       {children}
     </TelemetryContext.Provider>
   )
+}
+
+export function useTelemetry() {
+  const context =
+    useContext(TelemetryContext)
+
+  if (!context) {
+    throw new Error(
+      'useTelemetry must be used inside TelemetryProvider'
+    )
+  }
+
+  return context
 }
 
 export function useTelemetryContext() {
@@ -331,9 +503,3 @@ export function useTelemetryContext() {
 
   return context
 }
-
-export function useTelemetry() {
-  return useTelemetryContext()
-}
-
-export default TelemetryContext

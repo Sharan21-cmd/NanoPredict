@@ -1,9 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Panel from '../layout/Panel'
 import { useTelemetry } from '../../telemetry/useTelemetry'
 
 const MIN_POSITION = 0
 const MAX_POSITION = 100
+
+const MIN_SPEED = 1
+const MAX_SPEED = 100
 
 export default function MotorControl() {
   const {
@@ -21,35 +24,60 @@ export default function MotorControl() {
     telemetry.stage.speedMmPerSec
   )
 
-  const currentPosition = telemetry.stage.positionMm
-  const isMoving = telemetry.stage.moving
+  const currentPosition =
+    telemetry.stage.positionMm
+
+  const isMoving =
+    telemetry.stage.moving
+
+  // Keep the local slider synchronized with
+  // the shared motor-speed state.
+  useEffect(() => {
+    setSpeed(
+      telemetry.stage.speedMmPerSec
+    )
+  }, [
+    telemetry.stage.speedMmPerSec,
+  ])
 
   function moveTo(position) {
-    const safePosition = Math.max(
-      MIN_POSITION,
-      Math.min(MAX_POSITION, position)
-    )
+    const safePosition =
+      Math.max(
+        MIN_POSITION,
+        Math.min(
+          MAX_POSITION,
+          position
+        )
+      )
 
     setTarget(safePosition)
-    setTargetPosition(safePosition)
+
+    setTargetPosition(
+      safePosition
+    )
   }
 
   function handleTargetChange(event) {
-    const value = Number(event.target.value)
+    const value =
+      Number(event.target.value)
 
     setTarget(value)
+
     setTargetPosition(value)
   }
 
   function handleSpeedChange(event) {
-    const value = Number(event.target.value)
+    const value =
+      Number(event.target.value)
 
     setSpeed(value)
+
     setMotorSpeed(value)
   }
 
   function handleStop() {
     stopMotor()
+
     setTarget(currentPosition)
   }
 
@@ -87,7 +115,9 @@ export default function MotorControl() {
                   : 'text-slate-500 bg-slate-900 border-slate-800'
               }`}
             >
-              {isMoving ? 'MOVING' : 'STOPPED'}
+              {isMoving
+                ? 'MOVING'
+                : 'STOPPED'}
             </span>
           </div>
         </div>
@@ -110,7 +140,9 @@ export default function MotorControl() {
             max={MAX_POSITION}
             step="1"
             value={target}
-            onChange={handleTargetChange}
+            onChange={
+              handleTargetChange
+            }
             className="w-full accent-cyan-400 cursor-pointer"
           />
 
@@ -128,28 +160,34 @@ export default function MotorControl() {
           </p>
 
           <div className="grid grid-cols-4 gap-1.5">
-            {[0, 25, 50, 75].map((position) => (
-              <button
-                key={position}
-                type="button"
-                onClick={() => moveTo(position)}
-                className="py-2 border border-slate-800 bg-slate-950 text-[9px] font-mono text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors rounded-sm"
-              >
-                {position}
-              </button>
-            ))}
+            {[0, 25, 50, 75].map(
+              (position) => (
+                <button
+                  key={position}
+                  type="button"
+                  onClick={() =>
+                    moveTo(position)
+                  }
+                  className="py-2 border border-slate-800 bg-slate-950 text-[9px] font-mono text-slate-400 hover:text-slate-200 hover:border-slate-600 transition-colors rounded-sm"
+                >
+                  {position}
+                </button>
+              )
+            )}
           </div>
 
           <button
             type="button"
-            onClick={() => moveTo(100)}
+            onClick={() =>
+              moveTo(100)
+            }
             className="w-full mt-1.5 py-2 border border-cyan-400/20 bg-cyan-400/5 text-[9px] font-mono text-cyan-400 hover:bg-cyan-400/10 transition-colors rounded-sm"
           >
             MOVE TO 100 mm
           </button>
         </div>
 
-        {/* Speed */}
+        {/* Motor speed */}
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] text-slate-500">
@@ -163,13 +201,21 @@ export default function MotorControl() {
 
           <input
             type="range"
-            min="1"
-            max="30"
+            min={MIN_SPEED}
+            max={MAX_SPEED}
             step="1"
             value={speed}
-            onChange={handleSpeedChange}
+            onChange={
+              handleSpeedChange
+            }
             className="w-full accent-cyan-400 cursor-pointer"
           />
+
+          <div className="flex justify-between mt-1 text-[8px] font-mono text-slate-600">
+            <span>1 mm/s</span>
+            <span>50 mm/s</span>
+            <span>100 mm/s</span>
+          </div>
         </div>
 
         {/* Stop */}
