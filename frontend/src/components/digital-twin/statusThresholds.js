@@ -14,7 +14,7 @@ export const DIGITAL_TWIN_THRESHOLDS = {
   },
 
   vibration: {
-    warning: 0.93,
+    warning: 0.96,
     critical: 0.98,
   },
 };
