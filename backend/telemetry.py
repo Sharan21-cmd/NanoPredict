@@ -3,8 +3,10 @@ import time
 
 try:
     from .hardware import hardware_telemetry
+    from .phase2_predictor import predict_phase2
 except ImportError:
     from hardware import hardware_telemetry
+    from phase2_predictor import predict_phase2
 
 
 class TelemetryGenerator:
@@ -259,6 +261,8 @@ def generate_from_hardware():
     environment_data = data.get("environment", {})
     motor_data = data.get("motor", {})
 
+    phase2_data = predict_phase2(data)
+
     acceleration = vibration_data.get("acceleration_g")
     temperature = environment_data.get("temperature_c")
     pressure_hpa = environment_data.get("pressure_hpa")
@@ -290,6 +294,8 @@ def generate_from_hardware():
         "elapsed": 0.0,
 
         "source": "raspberry_pi",
+
+        "phase2": phase2_data,
 
         "motor": {
             "position": float(position_steps),

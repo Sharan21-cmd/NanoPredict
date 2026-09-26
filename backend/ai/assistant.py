@@ -936,50 +936,109 @@ def _prediction_answer(
     context: Dict[str, Any],
 ) -> Dict[str, Any]:
 
-    prediction = context.get(
-        "prediction"
-    ) or {}
+    prediction = context.get("prediction") or {}
+    phase2 = context.get("phase2") or {}
 
-    condition = prediction.get(
-        "condition",
-        "UNKNOWN",
+    observations = []
+    causes = []
+    actions = []
+
+    # Existing prediction engine
+    condition = prediction.get("condition", "UNKNOWN")
+    confidence = prediction.get("confidence")
+
+    observations.append(
+        f"Prediction condition: {condition}."
     )
-
-    confidence = prediction.get(
-        "confidence"
-    )
-
-    observations = [
-        f"Prediction condition: {condition}.",
-    ]
 
     if confidence is not None:
         observations.append(
-            f"Prediction confidence: "
-            f"{_fmt(confidence, 2)}."
+            f"Prediction confidence: {_fmt(confidence, 2)}."
         )
 
-    warnings = prediction.get(
-        "warnings"
-    ) or []
+    warnings = prediction.get("warnings") or []
+    observations.extend(str(item) for item in warnings)
 
-    observations.extend(
-        str(item)
-        for item in warnings
-    )
+    # Phase-2 real telemetry anomaly prediction
+    if phase2:
+        model_source = phase2.get(
+            "model",
+            "Phase-2 telemetry assessment"
+        )
+
+        risk = phase2.get("risk", "UNKNOWN")
+        anomaly = phase2.get("anomaly")
+
+        observations.append(
+            f"Phase-2 risk level: {risk}."
+        )
+
+        if anomaly is not None:
+            observations.append(
+                f"Phase-2 anomaly detected: "
+                f"{'YES' if anomaly else 'NO'}."
+            )
+
+        observed = phase2.get("observed") or {}
+
+        if observed.get("acceleration_g") is not None:
+            observations.append(
+                f"Observed acceleration: "
+                f"{_fmt(observed['acceleration_g'], 3)} g."
+            )
+
+        if observed.get("temperature_c") is not None:
+            observations.append(
+                f"Observed temperature: "
+                f"{_fmt(observed['temperature_c'], 2)} °C."
+            )
+
+        if observed.get("pressure_hpa") is not None:
+            observations.append(
+                f"Observed pressure: "
+                f"{_fmt(observed['pressure_hpa'], 2)} hPa."
+            )
+
+        if observed.get("step_rate") is not None:
+            observations.append(
+                f"Observed step rate: "
+                f"{_fmt(observed['step_rate'], 2)} steps/s."
+            )
+
+        reasons = phase2.get("reasons") or []
+        causes.extend(str(item) for item in reasons)
+
+        if phase2.get("model_loaded"):
+            observations.append(
+                f"Prediction source: {model_source}."
+            )
+        else:
+            observations.append(
+                "Prediction source: Phase-2 fallback telemetry rules."
+            )
+
+        actions.extend([
+            "Continue monitoring the real Raspberry Pi telemetry.",
+            "Review the latest risk and alert state if the anomaly persists.",
+        ])
+
+    if not actions:
+        actions = [
+            "Continue monitoring the affected telemetry trend.",
+            "Check the corresponding current alert and risk state.",
+        ]
 
     return {
         "answer": (
             "The prediction engine uses recent telemetry trends to "
-            "identify developing conditions. It indicates what the "
-            "current data suggests, not a guaranteed future event."
+            "identify developing conditions. Phase-2 also evaluates "
+            "real Raspberry Pi sensor telemetry for abnormal patterns. "
+            "An anomaly indicates an unusual telemetry pattern; it is "
+            "not proof of equipment failure."
         ),
         "observations": observations,
-        "causes": [],
-        "actions": [
-            "Continue monitoring the affected telemetry trend.",
-            "Check the corresponding current alert and risk state.",
-        ],
+        "causes": causes,
+        "actions": actions,
     }
 
 

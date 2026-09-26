@@ -128,6 +128,8 @@ def build_context(
         "pressure": {},
 
         "laser": {},
+
+        "phase2": {},
     }
 
     if telemetry:
@@ -146,6 +148,10 @@ def build_context(
 
         laser = telemetry.get(
             "laser"
+        ) or {}
+
+        phase2 = telemetry.get(
+            "phase2"
         ) or {}
 
         # -----------------------------------------------------
@@ -250,6 +256,12 @@ def build_context(
         # -----------------------------------------------------
         # Laser
         # -----------------------------------------------------
+
+        # -----------------------------------------------------
+        # PHASE-2 ML ANOMALY DETECTION
+        # -----------------------------------------------------
+
+        machine_context["phase2"] = phase2
 
         machine_context["laser"] = {
             "displacement_mm": laser.get(
