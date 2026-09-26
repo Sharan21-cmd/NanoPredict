@@ -9,8 +9,8 @@ function getTemperatureStatus(value) {
 }
 
 function getVibrationStatus(value) {
-  if (value >= 0.8) return 'critical'
-  if (value >= 0.4) return 'warning'
+  if (value >= 0.98) return 'critical'
+  if (value >= 0.96) return 'warning'
   return 'stable'
 }
 

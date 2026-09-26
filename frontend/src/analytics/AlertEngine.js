@@ -5,8 +5,8 @@ const ALERT_CONFIG = {
   },
 
   vibration: {
-    warning: 0.4,
-    critical: 0.8,
+    warning: 0.96,
+    critical: 0.98,
   },
 
   vacuum: {
